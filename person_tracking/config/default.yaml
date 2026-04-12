@@ -1,0 +1,121 @@
+# =============================================================================
+# Person Tracking System - Default Configuration
+# =============================================================================
+# 人物检测跟踪系统默认配置文件
+# 
+# 使用方式:
+#   python -m person_tracking.main --source video.mp4 --config config/default.yaml
+#
+# 配置项说明请参考各模块文档。
+
+# -----------------------------------------------------------------------------
+# 检测器配置
+# -----------------------------------------------------------------------------
+detector:
+  # 模型路径 (可选值: yolo11n.pt, yolo11s.pt, yolo11m.pt, yolo11l.pt, yolo11x.pt)
+  # n - nano (最快，精度较低)
+  # s - small (平衡)
+  # m - medium (中等)
+  # l - large (较慢，精度高)
+  # x - extra-large (最慢，精度最高)
+  model_path: "yolo11n.pt"
+  
+  # 检测置信度阈值 [0.0, 1.0]
+  confidence_threshold: 0.5
+  
+  # NMS IOU 阈值 [0.0, 1.0]
+  iou_threshold: 0.45
+  
+  # 推理设备 (cuda, cpu, mps)
+  device: "cuda"
+  
+  # 检测类别 (COCO: person=0)
+  classes: [0]
+  
+  # 推理图像尺寸
+  imgsz: 640
+
+# -----------------------------------------------------------------------------
+# 跟踪器配置
+# -----------------------------------------------------------------------------
+tracker:
+  # 跟踪器类型 (bytetrack, botsort)
+  tracker_type: "bytetrack"
+  
+  # 轨迹缓冲帧数 (跟踪对象消失后保留的帧数)
+  track_buffer: 30
+  
+  # 匹配阈值 [0.0, 1.0]
+  match_thresh: 0.8
+  
+  # 跟踪置信度阈值 [0.0, 1.0]
+  track_thresh: 0.5
+  
+  # 新建轨迹阈值 [0.0, 1.0]
+  new_track_thresh: 0.6
+
+# -----------------------------------------------------------------------------
+# 可视化配置
+# -----------------------------------------------------------------------------
+visualizer:
+  # 边界框颜色 (BGR格式)
+  box_color: [0, 255, 0]
+  
+  # 文本颜色 (BGR格式)
+  text_color: [255, 255, 255]
+  
+  # 轨迹颜色 (BGR格式，实际会按 track_id 自动分配)
+  trajectory_color: [255, 0, 0]
+  
+  # 线条宽度 [1, 10]
+  line_thickness: 2
+  
+  # 显示的轨迹点数量 (0 表示不显示轨迹)
+  trajectory_length: 50
+  
+  # 是否显示中心点
+  show_center_point: true
+  
+  # 是否显示置信度
+  show_confidence: true
+  
+  # 字体缩放比例 [0.1, 2.0]
+  font_scale: 0.6
+
+# -----------------------------------------------------------------------------
+# 处理管道配置
+# -----------------------------------------------------------------------------
+pipeline:
+  # 是否显示进度条
+  show_progress: true
+  
+  # 是否保存输出视频
+  save_output: true
+  
+  # 输出视频帧率 (null 表示使用原视频帧率)
+  output_fps: null
+  
+  # 跳帧处理数量 (0 表示不跳帧)
+  skip_frames: 0
+  
+  # 是否进行模型预热
+  warmup: true
+
+# -----------------------------------------------------------------------------
+# 日志配置
+# -----------------------------------------------------------------------------
+logging:
+  # 日志级别 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  level: "INFO"
+  
+  # 日志格式
+  format: "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+  
+  # 日志文件路径
+  file: "logs/tracking.log"
+  
+  # 日志轮转大小
+  rotation: "10 MB"
+  
+  # 日志保留时间
+  retention: "7 days"
