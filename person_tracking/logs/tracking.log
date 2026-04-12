@@ -8,3 +8,9 @@
 2026-04-11 21:25:52 | INFO     | src.core.pipeline:__init__:70 | TrackingPipeline initialized: model=yolo11n.pt
 2026-04-11 21:25:53 | INFO     | src.data.loader:__init__:76 | VideoLoader initialized: source=0, fps=30.00, size=1280x720
 2026-04-11 21:25:53 | INFO     | src.core.pipeline:run:311 | Starting processing: source=0, total_frames=-1, output=None, csv=None
+2026-04-12 19:16:20 | INFO     | src.core.pipeline:_setup_components:84 | Loading model: yolo11n.pt
+2026-04-12 19:16:21 | INFO     | src.core.pipeline:__init__:70 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-12 21:01:59 | INFO     | src.core.pipeline:_setup_components:84 | Loading model: yolo11n.pt
+2026-04-12 21:01:59 | INFO     | src.core.pipeline:__init__:70 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-12 21:03:20 | INFO     | src.core.pipeline:_setup_components:84 | Loading model: yolo11n.pt
+2026-04-12 21:03:20 | INFO     | src.core.pipeline:__init__:70 | TrackingPipeline initialized: model=yolo11n.pt
