@@ -143,7 +143,7 @@ class VideoCanvas(QWidget):
     # 公共方法
     # ========================================================================
     
-    def set_frame(self, frame: NDArray[np.uint8]) -> None:
+    def set_frame(self, frame: NDArray[np.uint8], copy: bool = False) -> None:
         """设置当前显示的帧
         
         Args:
@@ -152,7 +152,7 @@ class VideoCanvas(QWidget):
         if frame is None or frame.size == 0:
             return
         
-        self._current_frame = frame.copy()
+        self._current_frame = frame.copy() if copy else frame
         self._update_display()
     
     def set_overlay(
@@ -251,7 +251,7 @@ class VideoCanvas(QWidget):
             scaled_pixmap = QPixmap.fromImage(q_image).scaled(
                 scaled_w, scaled_h,
                 Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
+                Qt.TransformationMode.FastTransformation  # 性能优化：使用快速缩放
             )
             self._current_pixmap = scaled_pixmap
             self._image_label.setPixmap(scaled_pixmap)

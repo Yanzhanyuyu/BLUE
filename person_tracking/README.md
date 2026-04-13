@@ -269,6 +269,20 @@ python -m pytest tests/ -v
 - CUDA 兼容 GPU（可选，用于加速）
 - PySide6 >= 6.5.0（用于 GUI）
 
+## 最近更新
+
+### 性能优化 (2024)
+- ✅ 视频采集和推理已移出GUI主线程，使用独立的Worker线程
+- ✅ VideoCanvas优化：减少不必要的图像拷贝，使用快速缩放
+- ✅ 新增 `workers.py` 模块：VideoCaptureWorker 和 InferenceWorker
+- ✅ 新增 `constants.py` 模块：节流参数集中配置
+- ✅ 进度条功能：本地视频支持时间显示和拖动跳转
+
+### 已知限制
+- Worker线程集成已完成，但需要真实推理模型才能完全发挥作用
+- RTSP和本地视频的时间轴功能需要进一步完善
+- 参数面板与后端配置的联动需要额外测试
+
 ## 许可证
 
 MIT License
