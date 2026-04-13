@@ -100,7 +100,21 @@ class MainWindow(QMainWindow):
         self._frame_count: int = 0
         self._last_fps_time: float = 0.0
 
-        # 初始化 UI
+
+        # Worker 线程 (性能优化) - 必须在__init__中初始化
+        self._capture_worker = None
+        self._inference_worker = None
+
+        # 视频信息 (用于进度条)
+        self._video_info = {
+            'width': 0, 'height': 0, 'fps': 0.0,
+            'total_frames': 0, 'current_frame': 0, 'is_local_video': False
+        }
+
+        # 进度条拖动状态
+        self._is_dragging_slider = False
+
+                # 初始化 UI
         self._init_ui()
         self._init_menu_bar()
         self._init_tool_bar()
@@ -1041,6 +1055,22 @@ class MainWindow(QMainWindow):
         if not self._is_running:
             self._is_running = True
             self._is_paused = False
+
+            # 安全获取worker属性
+            capture_worker = getattr(self, "_capture_worker", None)
+            inference_worker = getattr(self, "_inference_worker", None)
+
+            if self._current_source:
+                if capture_worker is None:
+                    self._start_worker_mode()
+                else:
+                    if capture_worker:
+                        capture_worker.resume()
+                    if inference_worker:
+                        inference_worker.resume()
+            else:
+                self._start_mock_demo()
+
             self._update_status("运行中", "green")
             self.start_requested.emit()
     
@@ -1049,6 +1079,16 @@ class MainWindow(QMainWindow):
         """暂停处理"""
         if self._is_running and not self._is_paused:
             self._is_paused = True
+            
+            # 安全获取worker属性
+            capture_worker = getattr(self, "_capture_worker", None)
+            inference_worker = getattr(self, "_inference_worker", None)
+            
+            if capture_worker:
+                capture_worker.pause()
+            if inference_worker:
+                inference_worker.pause()
+                
             self._update_status("已暂停", "yellow")
             self.pause_requested.emit()
     
@@ -1057,6 +1097,16 @@ class MainWindow(QMainWindow):
         """停止处理"""
         self._is_running = False
         self._is_paused = False
+
+        self._stop_workers()
+        self._stop_all_sources()
+
+        # 重置进度条
+        if hasattr(self, '_progress_slider'):
+            self._progress_slider.setValue(0)
+        if hasattr(self, '_time_label'):
+            self._time_label.setText("00:00 / 00:00")
+
         self._update_status("已停止", "gray")
         self.stop_requested.emit()
     
@@ -1168,8 +1218,30 @@ class MainWindow(QMainWindow):
 
     def _stop_all_sources(self) -> None:
         """停止所有视频源"""
+        self._stop_workers()
         self._stop_mock_demo()
         self._stop_camera()
+
+    def _stop_workers(self) -> None:
+        """停止Worker线程 - 安全版本"""
+        capture_worker = getattr(self, "_capture_worker", None)
+        inference_worker = getattr(self, "_inference_worker", None)
+        
+        if capture_worker:
+            try:
+                capture_worker.stop()
+                capture_worker.wait(1000)
+            except Exception:
+                pass
+            self._capture_worker = None
+
+        if inference_worker:
+            try:
+                inference_worker.stop()
+                inference_worker.wait(1000)
+            except Exception:
+                pass
+            self._inference_worker = None
 
     def _stop_camera(self) -> None:
         """停止摄像头"""
@@ -1340,6 +1412,12 @@ class MainWindow(QMainWindow):
     
     def closeEvent(self, event) -> None:
         """关闭事件"""
-        # 停止所有源
+        # 安全停止所有workers和源
+        self._stop_workers()
         self._stop_all_sources()
+
+        # 清理Pipeline
+        if hasattr(self, '_pipeline') and self._pipeline:
+            self._pipeline = None
+
         event.accept()
