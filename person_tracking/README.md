@@ -161,6 +161,56 @@ CSVExporter ───> 日志文件
 
 ```
 person_tracking/
+├── config/               # 配置文件
+│   ├── default.yaml      # 默认配置
+│   └── bytetrack.yaml    # ByteTrack 配置
+├── scripts/              # 工具脚本 🆕
+│   └── verify_api_export.py  # API 导出验证
+├── src/                  # 源代码
+│   ├── gui/              # GUI 模块
+│   │   ├── __init__.py
+│   │   ├── app.py        # 应用入口
+│   │   ├── main_window.py # 主窗口
+│   │   ├── workers.py    # 工作线程
+│   │   └── widgets/      # 可复用组件
+│   │       ├── video_canvas.py
+│   │       ├── trajectory_list.py
+│   │       └── log_panel.py
+│   ├── core/             # 核心模块
+│   │   ├── detector.py   # 检测器
+│   │   ├── tracker.py    # 跟踪器
+│   │   └── pipeline.py   # 处理管道
+│   ├── data/             # 数据模块
+│   │   ├── loader.py     # 视频加载
+│   │   ├── types.py      # 数据类型
+│   │   └── trajectory.py # 轨迹管理
+│   ├── viz/              # 可视化模块
+│   │   └── visualizer.py
+│   ├── export/           # 导出模块
+│   │   └── csv_exporter.py
+│   ├── infra/            # 基础设施
+│   │   ├── config.py     # 配置管理
+│   │   ├── logger.py     # 日志配置
+│   │   └── exceptions.py # 异常定义
+│   ├── main.py           # CLI 主入口
+│   └── __init__.py       # 包导出 (run_tracking)
+├── tests/                # 测试
+│   ├── test_types.py
+│   ├── test_config.py
+│   ├── test_trajectory.py
+│   ├── test_csv_exporter.py
+│   └── test_parameter_override.py 🆕
+├── docs/                 # 文档
+│   ├── PROJECT_HANDOFF.md
+│   ├── GUI_DESIGN_HANDOFF.md
+│   └── SESSION_HANDOFF.md 🆕
+├── output/               # 输出目录
+├── logs/                 # 日志目录
+├── AGENTS.md             # 项目规则文件 🆕
+├── requirements.txt      # 核心依赖
+└── requirements-gui.txt  # GUI 依赖
+```
+person_tracking/
 ├── config/                    # 配置文件
 │   ├── default.yaml           # 默认配置
 │   └── bytetrack.yaml         # ByteTrack 配置
@@ -222,18 +272,26 @@ person_tracking/
 
 ## 测试方案
 
-### 单元测试（44个测试）
+### 单元测试（65个测试）
 
 - `test_types.py`: 数据类型测试（BoundingBox, Detection, TrackedObject, Frame, Trajectory）
 - `test_config.py`: 配置加载/保存测试
-- `test_trajectory.py`: 轨迹管理测试
+- `test_trajectory.py`: 轨迹管理测试（含新增公开方法测试）
 - `test_csv_exporter.py`: CSV 导出测试
+- `test_parameter_override.py`: 参数边界值测试 🆕
 
 ### 运行测试
 
 ```bash
 cd person_tracking
 python -m pytest tests/ -v
+```
+
+### API 导出验证 🆕
+
+```bash
+# 验证 README 中声明的 API 是否与源码一致
+python scripts/verify_api_export.py
 ```
 
 ## 配置说明
@@ -271,6 +329,18 @@ python -m pytest tests/ -v
 
 ## 最近更新
 
+### 2026-04-14 工程审计与增量改造 🆕
+- ✅ 修复 `src/__init__.py` 未导出 `run_tracking` 的 API 一致性问题
+- ✅ 修复参数覆盖使用 truthy 判断的 bug（改为 `is not None`）
+- ✅ 修复 GUI 直接访问核心层私有成员的封装问题
+- ✅ 实现 Pipeline CLI 模式的 `skip_frames` 支持
+- ✅ 新增 `get_all_recent_points()` 公开方法
+- ✅ 新增参数边界值测试（19 个测试）
+- ✅ 新增 API 导出验证脚本 `scripts/verify_api_export.py`
+- ✅ 创建项目规则文件 `AGENTS.md`
+- ✅ 创建会话交接文档 `docs/SESSION_HANDOFF.md`
+- ✅ 测试总数从 44 增加到 65，全部通过
+
 ### 性能优化 (2024)
 - ✅ 视频采集和推理已移出GUI主线程，使用独立的Worker线程
 - ✅ VideoCanvas优化：减少不必要的图像拷贝，使用快速缩放
@@ -279,7 +349,8 @@ python -m pytest tests/ -v
 - ✅ 进度条功能：本地视频支持时间显示和拖动跳转
 
 ### 已知限制
-- Worker线程集成已完成，但需要真实推理模型才能完全发挥作用
+- Worker线程已实现，但需要与 MainWindow 集成（P1 技术债）
+- 导出功能为占位提示，需要完整实现（P1 技术债）
 - RTSP和本地视频的时间轴功能需要进一步完善
 - 参数面板与后端配置的联动需要额外测试
 

@@ -369,11 +369,10 @@ class InferenceWorker(QThread):
                         bbox.confidence
                     ))
                 
-                # 获取轨迹
+                # 获取轨迹 (使用公开方法)
                 trajectories = {}
                 if self._show_trajectory and hasattr(self._pipeline, 'trajectory_manager'):
-                    for track_id, traj in self._pipeline.trajectory_manager._trajectories.items():
-                        trajectories[track_id] = traj.points[-50:]
+                    trajectories = self._pipeline.trajectory_manager.get_all_recent_points(50)
                 
                 # 构建结果
                 result = ProcessedData(

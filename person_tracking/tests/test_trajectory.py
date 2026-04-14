@@ -121,3 +121,33 @@ class TestTrajectoryManager:
         assert len(manager) == 1
         manager.clear()
         assert len(manager) == 0
+
+    def test_manager_get_all_recent_points(self, sample_detection):
+        """测试获取所有轨迹的最近 N 个点"""
+        manager = TrajectoryManager(max_trajectory_length=100)
+        
+        # 添加多个轨迹
+        for i in range(3):
+            bbox = BoundingBox(x=100 + i * 50, y=100, w=50, h=80, confidence=0.9)
+            detection = Detection(bbox=bbox, class_id=0, class_name="person")
+            for frame_id in range(5):
+                tracked_obj = TrackedObject(
+                    track_id=i,
+                    detection=detection,
+                    frame_id=frame_id,
+                    timestamp=frame_id * 0.033,
+                )
+                manager.update(tracked_obj)
+        
+        # 测试获取最近 3 个点
+        recent_points = manager.get_all_recent_points(n=3)
+        assert len(recent_points) == 3
+        for track_id in range(3):
+            assert track_id in recent_points
+            assert len(recent_points[track_id]) == 3
+
+    def test_manager_get_all_recent_points_empty(self):
+        """测试空轨迹管理器的 get_all_recent_points"""
+        manager = TrajectoryManager()
+        recent_points = manager.get_all_recent_points()
+        assert recent_points == {}
