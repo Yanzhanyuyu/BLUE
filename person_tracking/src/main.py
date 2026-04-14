@@ -170,12 +170,12 @@ def run_tracking(
     # 加载配置
     cfg = load_config(config)
 
-    # 应用命令行覆盖
-    if model:
+    # 应用命令行覆盖 (使用 is not None 判断，支持 confidence=0.0 等边缘值)
+    if model is not None:
         cfg.detector.model_path = model
-    if device:
+    if device is not None:
         cfg.detector.device = device
-    if confidence:
+    if confidence is not None:
         cfg.detector.confidence_threshold = confidence
 
     # 创建处理管道

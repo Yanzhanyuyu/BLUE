@@ -43,7 +43,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QIcon
 from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize
-from PySide6.QtGui import QActionGroup, QKeySequence, QIcon
 
 from .widgets.video_canvas import VideoCanvas, MockFrameGenerator
 
@@ -1361,10 +1360,9 @@ class MainWindow(QMainWindow):
                         bbox.confidence
                     ))
                 
-                # 从 trajectory_manager 获取轨迹
+                # 从 trajectory_manager 获取轨迹 (使用公开方法)
                 if hasattr(self._pipeline, 'trajectory_manager'):
-                    for track_id, traj in self._pipeline.trajectory_manager._trajectories.items():
-                        trajectories[track_id] = traj.points[-50:]  # 最近50个点
+                    trajectories = self._pipeline.trajectory_manager.get_all_recent_points(50)
                 
                 # 计算并显示 FPS
                 current_time = time.time()

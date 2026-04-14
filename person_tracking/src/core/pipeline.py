@@ -316,9 +316,24 @@ class TrackingPipeline:
 
         start_time = time.time()
 
+        # 跳帧计数器
+        frame_counter = 0
+        skip_frames = self.config.pipeline.skip_frames
+
         try:
             # 处理每一帧
             for frame in loader:
+                frame_counter += 1
+
+                # 跳帧逻辑：每 (skip_frames + 1) 帧处理一次
+                if skip_frames > 0 and frame_counter % (skip_frames + 1) != 0:
+                    # 跳过的帧仍然写入输出视频（如果需要），但不进行检测
+                    if writer:
+                        writer.write(frame.image)
+                    if progress_callback and total_frames > 0:
+                        progress_callback(frame.frame_id + 1, total_frames)
+                    continue
+
                 # 处理帧
                 processed_frame, tracked_objects = self.process_frame(frame)
 

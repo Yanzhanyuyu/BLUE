@@ -135,6 +135,22 @@ class TrajectoryManager:
             return []
         return trajectory.get_recent_points(n)
 
+    def get_all_recent_points(self, n: int = 50) -> dict[int, list[tuple[float, float, float]]]:
+        """获取所有轨迹的最近 N 个点
+
+        用于替代直接访问 _trajectories 私有成员。
+
+        Args:
+            n: 每个轨迹的点数量
+
+        Returns:
+            字典 {track_id: [(x, y, timestamp), ...]}
+        """
+        return {
+            track_id: traj.get_recent_points(n)
+            for track_id, traj in self._trajectories.items()
+        }
+
     def get_active_track_ids(self) -> list[int]:
         """获取所有活跃的 track_id
 
