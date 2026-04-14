@@ -18,3 +18,5 @@
 2026-04-13 23:15:26 | INFO     | src.core.pipeline:__init__:70 | TrackingPipeline initialized: model=yolo11n.pt
 2026-04-14 12:33:32 | INFO     | src.core.pipeline:_setup_components:84 | Loading model: yolo11n.pt
 2026-04-14 12:33:32 | INFO     | src.core.pipeline:__init__:70 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-14 21:42:46 | INFO     | src.core.pipeline:_setup_components:84 | Loading model: yolo11n.pt
+2026-04-14 21:42:47 | INFO     | src.core.pipeline:__init__:70 | TrackingPipeline initialized: model=yolo11n.pt

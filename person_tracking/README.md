@@ -45,7 +45,13 @@ python -m src.main --source video.mp4 --config config/default.yaml
 ### 图形界面使用 🆕
 
 ```bash
-# 启动 GUI 应用
+# 启动 GUI 应用（推荐方式，不依赖 PyTorch 加载）
+python run_gui.py
+
+# 或使用批处理脚本（Windows）
+run_gui.bat
+
+# 或使用 Python 模块（需要完整 PyTorch 环境）
 python -m src.gui.app
 ```
 
@@ -71,7 +77,7 @@ run_gui()
 ### Python API
 
 ```python
-from src import run_tracking
+from src.main import run_tracking
 
 # 运行跟踪
 stats = run_tracking(
@@ -272,13 +278,15 @@ person_tracking/
 
 ## 测试方案
 
-### 单元测试（65个测试）
+### 单元测试（91个测试）🆕
 
 - `test_types.py`: 数据类型测试（BoundingBox, Detection, TrackedObject, Frame, Trajectory）
 - `test_config.py`: 配置加载/保存测试
-- `test_trajectory.py`: 轨迹管理测试（含新增公开方法测试）
+- `test_trajectory.py`: 轨迹管理测试
 - `test_csv_exporter.py`: CSV 导出测试
-- `test_parameter_override.py`: 参数边界值测试 🆕
+- `test_parameter_override.py`: 参数边界值测试
+- `test_worker_integration.py`: Worker 集成测试 🆕
+- `test_export_functionality.py`: 导出功能测试 🆕
 
 ### 运行测试
 
@@ -329,17 +337,40 @@ python scripts/verify_api_export.py
 
 ## 最近更新
 
-### 2026-04-14 工程审计与增量改造 🆕
+### 2026-04-14 P1/P2 技术债修复完成 🆕
+
+#### P1 技术债（全部修复）
+- ✅ **Worker 线程集成** - VideoCaptureWorker + InferenceWorker 完整集成
+- ✅ **导出功能** - 实现 CSV 导出和轨迹统计导出
+- ✅ **show_progress 配置** - 配置项生效，CLI 支持静默模式
+- ✅ **config_changed 信号** - UI 参数热更新，无需重启
+
+#### P2 技术债（全部处理）
+- ✅ **BoundingBox 输入验证** - 添加 `__post_init__` 边界检查
+- ✅ **CSV 原子写入** - 实现临时文件+重命名机制，防止文件损坏
+- ⚠️ **Pipeline 职责边界** - 明确为设计决策，无需修改
+
+#### 测试增强
+- ✅ 新增 Worker 集成测试（7 个）
+- ✅ 新增导出功能测试（12 个）
+- ✅ 新增参数边界值测试（19 个）
+- ✅ 测试总数从 65 增加到 **91**，全部通过
+
+#### GUI 启动优化
+- ✅ **修复 GUI 启动问题** - 移除 `src/__init__.py` 的自动导入，避免 GUI 启动时加载 PyTorch
+- ✅ **新增启动脚本** - `run_gui.py` 和 `run_gui.bat` 提供独立的 GUI 启动方式
+
+---
+
+### 2026-04-14 工程审计与增量改造
 - ✅ 修复 `src/__init__.py` 未导出 `run_tracking` 的 API 一致性问题
 - ✅ 修复参数覆盖使用 truthy 判断的 bug（改为 `is not None`）
 - ✅ 修复 GUI 直接访问核心层私有成员的封装问题
 - ✅ 实现 Pipeline CLI 模式的 `skip_frames` 支持
 - ✅ 新增 `get_all_recent_points()` 公开方法
-- ✅ 新增参数边界值测试（19 个测试）
 - ✅ 新增 API 导出验证脚本 `scripts/verify_api_export.py`
 - ✅ 创建项目规则文件 `AGENTS.md`
 - ✅ 创建会话交接文档 `docs/SESSION_HANDOFF.md`
-- ✅ 测试总数从 44 增加到 65，全部通过
 
 ### 性能优化 (2024)
 - ✅ 视频采集和推理已移出GUI主线程，使用独立的Worker线程
@@ -349,10 +380,9 @@ python scripts/verify_api_export.py
 - ✅ 进度条功能：本地视频支持时间显示和拖动跳转
 
 ### 已知限制
-- Worker线程已实现，但需要与 MainWindow 集成（P1 技术债）
-- 导出功能为占位提示，需要完整实现（P1 技术债）
-- RTSP和本地视频的时间轴功能需要进一步完善
-- 参数面板与后端配置的联动需要额外测试
+- RTSP 和本地视频的时间轴功能需要进一步完善
+- 长时间运行时的内存占用优化（可选）
+- 多摄像头同时支持（可选）
 
 ## 许可证
 
