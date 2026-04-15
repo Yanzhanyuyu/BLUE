@@ -56,9 +56,9 @@ class DetectorConfig(BaseModel):
         le=1.0,
         description="NMS IOU 阈值",
     )
-    device: Literal["cuda", "cpu", "mps"] = Field(
-        default="cuda",
-        description="推理设备",
+    device: Literal["cuda", "cpu", "mps", "auto"] = Field(
+        default="auto",  # 改为auto自动选择，避免cuda不可用时报错
+        description="推理设备（auto自动选择）",
     )
     classes: list[int] = Field(
         default=[0],
@@ -70,6 +70,23 @@ class DetectorConfig(BaseModel):
         le=1280,
         description="推理图像尺寸",
     )
+
+    @field_validator('device', mode='before')
+    @classmethod
+    def resolve_auto_device(cls, v: str) -> str:
+        """如果 device 为 auto，自动选择可用设备"""
+        if v == 'auto':
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    return 'cuda'
+                elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                    return 'mps'
+                else:
+                    return 'cpu'
+            except ImportError:
+                return 'cpu'
+        return v
 
 
 class TrackerConfig(BaseModel):
@@ -128,6 +145,9 @@ class VisualizerConfig(BaseModel):
         show_center_point: 是否显示中心点
         show_confidence: 是否显示置信度
         font_scale: 字体缩放比例
+        show_bbox: 是否显示边界框（GUI开关支持）
+        show_trajectory: 是否显示轨迹（GUI开关支持）
+        show_id: 是否显示ID标签（GUI开关支持）
     """
 
     box_color: tuple[int, int, int] = Field(
@@ -166,6 +186,19 @@ class VisualizerConfig(BaseModel):
         ge=0.1,
         le=2.0,
         description="字体缩放比例",
+    )
+    # GUI显示开关配置（解决伪开关问题）
+    show_bbox: bool = Field(
+        default=True,
+        description="是否显示边界框",
+    )
+    show_trajectory: bool = Field(
+        default=True,
+        description="是否显示轨迹",
+    )
+    show_id: bool = Field(
+        default=True,
+        description="是否显示ID标签",
     )
 
 

@@ -78,9 +78,15 @@ visualizer:
   
   # 是否显示置信度
   show_confidence: true
-  
+
   # 字体缩放比例 [0.1, 2.0]
   font_scale: 0.6
+
+  # GUI显示开关（与GUI控件对应）
+  # 这些配置控制GUI中的可视化元素显示
+  show_bbox: true         # 是否显示边界框
+  show_trajectory: true   # 是否显示轨迹
+  show_id: true           # 是否显示ID标签
 
 # -----------------------------------------------------------------------------
 # 处理管道配置

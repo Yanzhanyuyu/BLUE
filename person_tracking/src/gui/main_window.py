@@ -44,7 +44,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QIcon
 from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize
 
-from .widgets.video_canvas import VideoCanvas, MockFrameGenerator
+from .widgets.video_canvas import VideoCanvas
 
 
 class MainWindow(QMainWindow):
@@ -1147,13 +1147,9 @@ class MainWindow(QMainWindow):
             return
         
         try:
-            # 显示处理后的帧
+            # 显示处理后的帧（已由 Visualizer 渲染）
             self._video_canvas.set_frame(result.frame)
-            self._video_canvas.set_overlay(
-                result.detections, 
-                result.trajectories, 
-                result.info_text
-            )
+            self._video_canvas.set_info_text(result.info_text)
             
             # 更新目标表格
             self._update_target_table(result.detections)
@@ -1620,7 +1616,7 @@ class MainWindow(QMainWindow):
         
         # 显示
         self._video_canvas.set_frame(idle_frame)
-        self._video_canvas.set_overlay(info_text="等待视频源...")
+        self._video_canvas.set_info_text("等待视频源...")
         
         # 重置状态
         self._update_status("就绪", "gray")
@@ -1628,31 +1624,8 @@ class MainWindow(QMainWindow):
     @Slot()
     def _update_mock_frame(self) -> None:
         """更新 Mock 帧"""
-        if self._mock_generator:
-            frame, detections, trajectories, info_text = self._mock_generator.generate()
-            self._video_canvas.set_frame(frame)
-            self._video_canvas.set_overlay(detections, trajectories, info_text)
-
-            # 更新状态栏
-            fps = 28.5 + (hash(str(self._mock_generator._frame_count)) % 30) / 10
-            self._fps_status.setText(f"FPS: {fps:.1f}")
-            self._count_status.setText(f"检测数: {len(detections)}")
-
-            # 更新目标表格
-            self._target_table.setRowCount(len(detections))
-            for i, det in enumerate(detections):
-                track_id, x, y, w, h, conf = det
-                self._target_table.setItem(i, 0, QTableWidgetItem(str(track_id)))
-                self._target_table.setItem(i, 1, QTableWidgetItem(f"{conf:.2f}"))
-                self._target_table.setItem(i, 2, QTableWidgetItem(f"({int(x)}, {int(y)})"))
-
-            # 更新轨迹列表
-            if hasattr(self, '_trajectory_list'):
-                self._trajectory_list.update_trajectories(trajectories)
-
-        # 记录日志 (每10帧记录一次)
-        if hasattr(self, '_log_panel') and self._mock_generator._frame_count % 30 == 0:
-            self._log_panel.log_info(f"Frame: {self._mock_generator._frame_count}, Detections: {len(detections)}")
+        # Mock功能已禁用，此方法保留但不再使用
+        pass
 
     @Slot()
     def _update_camera_frame(self) -> None:
@@ -1727,11 +1700,11 @@ class MainWindow(QMainWindow):
                 
                 # 显示处理后的帧
                 self._video_canvas.set_frame(processed_frame.image)
-                self._video_canvas.set_overlay(detections, trajectories, info_text)
-                
+                self._video_canvas.set_info_text(info_text)
+
                 # 更新状态
                 self._count_status.setText(f"检测数: {len(tracked_objects)}")
-                
+
                 # 更新目标表格
                 self._target_table.setRowCount(len(detections))
                 for i, det in enumerate(detections):
@@ -1739,15 +1712,15 @@ class MainWindow(QMainWindow):
                     self._target_table.setItem(i, 0, QTableWidgetItem(str(track_id)))
                     self._target_table.setItem(i, 1, QTableWidgetItem(f"{conf:.2f}"))
                     self._target_table.setItem(i, 2, QTableWidgetItem(f"({int(x)}, {int(y)})"))
-                
+
                 # 更新轨迹列表
                 if hasattr(self, '_trajectory_list'):
                     self._trajectory_list.update_trajectories(trajectories)
-                
+
                 # 记录日志
                 if hasattr(self, '_log_panel') and self._frame_count % 30 == 0:
                     self._log_panel.log_info(f"Frame: {self._frame_count}, 检测到 {len(tracked_objects)} 人")
-                    
+
             except Exception as e:
                 if hasattr(self, '_log_panel'):
                     self._log_panel.log_error(f"检测错误: {str(e)}")
@@ -1758,7 +1731,7 @@ class MainWindow(QMainWindow):
             self._video_canvas.set_frame(frame)
             self._fps_status.setText("FPS: --")
             self._count_status.setText("预览模式")
-    
+
     @Slot()
     def _on_config_value_changed(self) -> None:
         """处理配置值变化 - 热更新支持

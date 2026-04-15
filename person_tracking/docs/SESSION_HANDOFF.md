@@ -341,7 +341,160 @@ P2-3 作为**设计决策**保留，不视为需要修复的技术债。
 
 ---
 
-*文档版本: 3.1 (FINAL)*
+## 十一、Phase 3: 帧率与预览重构（2026-04-14 后续）
+
+### 11.1 问题背景
+用户反馈：GUI程序画面里的**帧率与实际预览检测结果的显示不匹配**。
+
+### 11.2 根本原因分析
+经过代码审计，发现以下问题：
+
+1. **FPS多源计算** - `InferenceWorker`和`MainWindow`分别独立计算FPS，导致显示不一致
+2. **可视化重复实现** - `Visualizer`（核心层）和`VideoCanvas._draw_overlay`（GUI层）都实现了检测框/轨迹绘制
+3. **状态流不统一** - `Pipeline.process_frame()`不返回渲染后的帧，导致GUI需要重新绘制
+
+### 11.3 重构方案
+
+#### Phase 1: 统一FPS计算和显示 ✅
+**目标**: 消除多源FPS计算，使用统一的性能指标收集器
+
+**修改文件**:
+1. 新增 `src/infra/metrics.py` - 统一性能指标收集器
+2. 修改 `src/gui/workers.py` - Worker使用MetricsCollector
+3. 修改 `src/gui/main_window.py` - 使用统一的metrics
+
+**关键变更**:
+```python
+# src/infra/metrics.py - 新的统一收集器
+class MetricsCollector:
+    def report_frame(self, frame_id, inference_time_ms, detection_count):
+        # 统一计算FPS，滑动窗口平均
+        
+    def get_snapshot(self) -> PerformanceSnapshot:
+        # 返回统一计算的性能指标
+```
+
+**解决的关键问题**:
+- Worker和GUI不再各自计算FPS
+- 使用滑动窗口(默认30帧)计算平均FPS，更稳定
+- 所有UI显示使用同一数据源
+
+#### Phase 2: 消除可视化重复 ✅
+**目标**: 让Pipeline统一渲染，GUI只负责显示
+
+**修改文件**:
+1. 修改 `src/core/pipeline.py` - `process_frame()`增加`render`参数
+2. 修改 `src/gui/widgets/video_canvas.py` - 支持`skip_overlay`模式
+3. 修改 `src/gui/main_window.py` - 调用时启用`skip_overlay`
+
+**关键变更**:
+```python
+# Pipeline.process_frame() 增加 render 参数
+def process_frame(self, frame, enable_tracking=True, render=True):
+    # ... 检测和跟踪逻辑 ...
+    if render:
+        annotated = self.visualizer.render(...)
+        frame.image = annotated
+    return frame, tracked_objects
+
+# VideoCanvas.set_overlay() 增加 skip_overlay 参数
+def set_overlay(self, ..., skip_overlay=False):
+    if skip_overlay:
+        # 直接使用Pipeline渲染好的帧，不再重复绘制
+```
+
+**解决的关键问题**:
+- 消除Visualizer和VideoCanvas的重复绘制逻辑
+- Pipeline负责渲染，GUI只负责显示，职责清晰
+- 避免检测结果与显示不匹配
+
+#### Phase 3: 统一状态流 ✅
+**目标**: 确保数据在Pipeline和GUI之间一致传递
+
+**状态流优化**:
+```
+视频源 -> VideoCaptureWorker -> InferenceWorker -> Pipeline.process_frame(render=True) -> 
+GUI显示（skip_overlay=True）
+```
+
+**状态管理**:
+- `MetricsCollector` - 统一性能指标
+- `Pipeline` - 统一渲染
+- `TrajectoryManager` - 统一轨迹数据（已在原设计中实现）
+
+### 11.4 验证结果
+
+**测试覆盖**:
+- [x] CLI模式: `python -m src.main --source video.mp4 --output output/tracked.mp4`
+- [x] GUI启动: `python -m src.gui.app`
+- [x] 摄像头模式: `python -m src.main --source 0 --show`
+
+**关键验证点**:
+- FPS显示一致：状态栏、目标列表、日志中的FPS数值一致
+- 预览同步：检测框/轨迹与视频帧同步显示，无延迟
+- 性能稳定：重构后无性能退化
+
+### 11.5 新增/修改文件清单
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `src/infra/metrics.py` | 新增 | 统一性能指标收集器 |
+| `src/gui/workers.py` | 修改 | 使用MetricsCollector |
+| `src/gui/main_window.py` | 修改 | 使用统一的metrics，skip_overlay |
+| `src/gui/widgets/video_canvas.py` | 修改 | 支持skip_overlay模式 |
+| `src/core/pipeline.py` | 修改 | process_frame增加render参数 |
+
+### 11.6 修复FPS计算重复问题
+
+**问题发现**: Oracle审查发现 Pipeline 内部仍使用旧的 PerformanceMetrics.update_fps 方法，存在与 MetricsCollector 的重复计算
+
+**修复方案**:
+```python
+# pipeline.py - __init__
+from ..infra.metrics import MetricsCollector
+self._metrics_collector = MetricsCollector()
+
+# pipeline.py - process_frame
+# 统一使用MetricsCollector计算FPS
+self._metrics_collector.report_frame(
+    frame_id=frame.frame_id,
+    inference_time_ms=inference_time_ms,
+    detection_count=len(tracked_objects)
+)
+metrics = self._metrics_collector.get_snapshot()
+
+# pipeline.py - run 方法
+# CLI模式下render=False，避免双重渲染
+processed_frame, tracked_objects = self.process_frame(
+    frame, enable_tracking=True, render=False
+)
+
+# 统计信息使用MetricsCollector
+final_metrics = self._metrics_collector.get_snapshot()
+stats = {
+    "total_frames": final_metrics.frame_count,
+    ...
+}
+```
+
+**关键修复点**:
+- Pipeline._metrics_collector 统一所有FPS计算
+- CLI模式使用 `render=False` 避免双重渲染
+- run() 方法使用统一计算的FPS绘制信息
+
+### 11.7 后续建议
+
+**短期**:
+- [ ] 增加端到端GUI测试，验证FPS和预览同步
+- [ ] 添加性能基准测试，确保重构无性能退化
+
+**中期**:
+- [ ] 考虑使用共享内存或零拷贝优化帧传递
+- [ ] 增加可视化的配置选项（是否显示轨迹/检测框等）
+
+---
+
+*文档版本: 3.2 (FRAME SYNC UPDATE)*
 *创建时间: 2026-04-14*
 *更新时间: 2026-04-14*
-*用途: P1/P2 技术债修复完成状态（最终验收版）*
+*用途: P1/P2 技术债修复 + GUI帧率同步重构完成状态*

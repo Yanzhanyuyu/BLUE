@@ -16,6 +16,8 @@ from dataclasses import dataclass
 import cv2
 from PySide6.QtCore import QThread, Signal, Slot
 
+from ..infra.metrics import MetricsCollector, PerformanceSnapshot
+
 
 @dataclass
 class FrameData:
@@ -208,28 +210,28 @@ class VideoCaptureWorker(QThread):
 
 class InferenceWorker(QThread):
     """推理工作线程
-    
+
     负责执行目标检测和跟踪推理。
     接收原始帧，输出带标注的帧和跟踪结果。
-    
+
     Signals:
         result_ready: 推理完成时发出，参数为 ProcessedData
         error: 发生错误时发出
         finished: 线程结束时发出
     """
-    
+
     result_ready = Signal(object)  # ProcessedData
     error = Signal(str)
     finished = Signal()
     metrics_updated = Signal(dict)  # 性能指标更新
-    
+
     def __init__(
         self,
         config: Any = None,
         parent: Optional[QThread] = None
     ) -> None:
         """初始化推理工作线程
-        
+
         Args:
             config: 配置对象
             parent: 父线程
@@ -237,25 +239,22 @@ class InferenceWorker(QThread):
         super().__init__(parent)
         self._config = config
         self._pipeline = None
-        
+
         # 控制标志
         self._is_running = False
         self._is_paused = False
-        
+
         # 帧队列 (只保留最新帧)
         self._latest_frame: Optional[FrameData] = None
         self._frame_lock = None  # 简化处理：使用原子操作
-        
-        # 性能统计
-        self._frame_count = 0
-        self._total_inference_time = 0.0
-        self._last_fps_time = time.time()
-        self._current_fps = 0.0
-        
+
+        # 统一性能收集器（解决FPS多源计算问题）
+        self._metrics_collector = MetricsCollector()
+
         # 跳帧设置
         self._skip_frames = 0
         self._frame_counter = 0
-        
+
         # 配置参数 (运行时可更新)
         self._confidence_threshold = 0.5
         self._iou_threshold = 0.45
@@ -296,66 +295,103 @@ class InferenceWorker(QThread):
         self._latest_frame = frame_data
     
     def run(self) -> None:
-        """线程主循环"""
+        """线程主循环 - 修复跳帧连续性
+
+        重构说明：
+        - 跳过的帧使用上一帧渲染结果，保持视觉连续性
+        - 只在 Pipeline 中渲染，Worker 不重复渲染
+        """
         self._is_running = True
-        
+        self._metrics_collector.start()
+
         # 等待 pipeline 初始化
         while self._pipeline is None and self._is_running:
             time.sleep(0.1)
-        
+
         if self._pipeline is None:
             self.error.emit("Pipeline 未初始化")
             self.finished.emit()
             return
-        
-        last_process_time = time.time()
-        
+
+        # 缓存上一帧的渲染结果和跟踪状态
+        last_annotated_frame = None
+        last_tracked_objects = []
+        last_trajectories = {}
+
         while self._is_running:
             # 暂停时等待
             while self._is_paused and self._is_running:
                 time.sleep(0.01)
-            
+
             if not self._is_running:
                 break
-            
+
             # 获取最新帧
             frame_data = self._latest_frame
             if frame_data is None:
                 time.sleep(0.001)
                 continue
-            
-            # 跳帧逻辑
+
+            # 跳帧逻辑 - 修复：保持视觉连续性
             self._frame_counter += 1
-            if self._skip_frames > 0 and self._frame_counter % (self._skip_frames + 1) != 0:
-                continue
-            
-            # 处理帧
+            should_process = (
+                self._skip_frames == 0 or
+                self._frame_counter % (self._skip_frames + 1) == 1 or
+                self._frame_counter == 1  # 第一帧总是处理
+            )
+
             try:
                 start_time = time.time()
-                
-                # 创建 Frame 对象
-                from ..data.types import Frame as DataFrame
-                data_frame = DataFrame(
+
+                if should_process:
+                    # 正常处理帧（Pipeline统一渲染）
+                    from ..data.types import Frame as DataFrame
+                    data_frame = DataFrame(
+                        frame_id=frame_data.frame_id,
+                        timestamp=frame_data.timestamp,
+                        image=frame_data.frame
+                    )
+
+                    # 执行推理（Pipeline统一渲染）
+                    processed_frame, tracked_objects = self._pipeline.process_frame(
+                        data_frame, enable_tracking=True, render=True
+                    )
+
+                    # 更新缓存
+                    last_annotated_frame = processed_frame.image.copy()
+                    last_tracked_objects = tracked_objects
+                    if hasattr(self._pipeline, 'trajectory_manager'):
+                        last_trajectories = self._pipeline.trajectory_manager.get_all_recent_points(50)
+
+                    display_frame = last_annotated_frame
+
+                else:
+                    # 跳过的帧：使用缓存的渲染结果（关键修复）
+                    if last_annotated_frame is not None:
+                        display_frame = last_annotated_frame.copy()
+                        tracked_objects = last_tracked_objects
+                    else:
+                        # 首次跳帧，无缓存，显示原始帧（降级处理）
+                        display_frame = frame_data.frame.copy()
+                        tracked_objects = []
+                        last_trajectories = {}
+
+                # 计算推理时间（仅处理过的帧）
+                if should_process:
+                    inference_time_ms = (time.time() - start_time) * 1000
+                else:
+                    inference_time_ms = 0  # 跳过的帧不计算推理时间
+
+                # 使用统一的MetricsCollector报告帧数据
+                self._metrics_collector.report_frame(
                     frame_id=frame_data.frame_id,
-                    timestamp=frame_data.timestamp,
-                    image=frame_data.frame
+                    inference_time_ms=inference_time_ms,
+                    detection_count=len(tracked_objects)
                 )
-                
-                # 执行推理
-                processed_frame, tracked_objects = self._pipeline.process_frame(data_frame)
-                
-                # 计算推理时间
-                inference_time = time.time() - start_time
-                self._total_inference_time += inference_time
-                self._frame_count += 1
-                
-                # 计算 FPS
-                current_time = time.time()
-                if current_time - self._last_fps_time >= 1.0:
-                    self._current_fps = self._frame_count / (current_time - self._last_fps_time)
-                    self._frame_count = 0
-                    self._last_fps_time = current_time
-                
+
+                # 获取统一计算的性能指标
+                metrics = self._metrics_collector.get_snapshot()
+
                 # 准备检测结果
                 detections = []
                 for obj in tracked_objects:
@@ -368,34 +404,36 @@ class InferenceWorker(QThread):
                         int(bbox.h),
                         bbox.confidence
                     ))
-                
+
                 # 获取轨迹 (使用公开方法)
                 trajectories = {}
                 if self._show_trajectory and hasattr(self._pipeline, 'trajectory_manager'):
                     trajectories = self._pipeline.trajectory_manager.get_all_recent_points(50)
-                
+
                 # 构建结果
                 result = ProcessedData(
-                    frame=processed_frame.image,
+                    frame=display_frame,
                     detections=detections,
                     trajectories=trajectories,
                     info_text=f"Frame: {frame_data.frame_id} | Persons: {len(tracked_objects)}",
                     frame_id=frame_data.frame_id
                 )
-                
+
                 # 发送结果
                 self.result_ready.emit(result)
-                
-                # 发送性能指标
+
+                # 发送性能指标（使用统一计算的值）
                 self.metrics_updated.emit({
-                    'fps': self._current_fps,
-                    'inference_time': inference_time * 1000,  # ms
-                    'detection_count': len(tracked_objects)
+                    'fps': metrics.fps,
+                    'inference_time': inference_time_ms,
+                    'detection_count': len(tracked_objects),
+                    'frame_count': metrics.frame_count
                 })
-                
+
             except Exception as e:
                 self.error.emit(f"推理错误: {str(e)}")
-        
+
+        self._metrics_collector.stop()
         self.finished.emit()
     
     def stop(self) -> None:
