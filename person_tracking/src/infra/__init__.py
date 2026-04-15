@@ -4,6 +4,7 @@
 - config: 配置管理
 - logger: 日志配置
 - exceptions: 自定义异常
+- metrics: 性能指标收集
 """
 
 from .config import Config, load_config
@@ -16,6 +17,7 @@ from .exceptions import (
     InferenceError,
     ExportError,
 )
+from .metrics import MetricsCollector, PerformanceSnapshot
 
 __all__ = [
     "Config",
@@ -27,4 +29,6 @@ __all__ = [
     "ConfigurationError",
     "InferenceError",
     "ExportError",
+    "MetricsCollector",
+    "PerformanceSnapshot",
 ]

@@ -28,7 +28,7 @@ class TestDetectorConfig:
         config = DetectorConfig()
         assert config.model_path == "yolo11n.pt"
         assert config.confidence_threshold == 0.5
-        assert config.device == "cuda"
+        assert config.device == "auto"  # 默认值改为 auto
         assert config.classes == [0]
 
     def test_custom_config(self):
