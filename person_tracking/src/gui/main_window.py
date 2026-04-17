@@ -1396,10 +1396,10 @@ class MainWindow(QMainWindow):
             if stats_path:
                 exported_files.append(f"统计: {stats_path.name}")
             
-            # 3. 导出视频（如果有输出配置）
-            video_path = self._export_video(export_path)
-            if video_path:
-                exported_files.append(f"视频: {video_path.name}")
+            # 3. 导出视频 - 暂不支持
+            # video_path = self._export_video(export_path)
+            # if video_path:
+            #     exported_files.append(f"视频: {video_path.name}")
             
             # 显示结果
             if exported_files:
