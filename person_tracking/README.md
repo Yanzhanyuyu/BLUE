@@ -172,16 +172,17 @@ person_tracking/
 │   └── bytetrack.yaml    # ByteTrack 配置
 ├── scripts/              # 工具脚本 🆕
 │   └── verify_api_export.py  # API 导出验证
-├── src/                  # 源代码
-│   ├── gui/              # GUI 模块
-│   │   ├── __init__.py
-│   │   ├── app.py        # 应用入口
-│   │   ├── main_window.py # 主窗口
-│   │   ├── workers.py    # 工作线程
-│   │   └── widgets/      # 可复用组件
-│   │       ├── video_canvas.py
-│   │       ├── trajectory_list.py
-│   │       └── log_panel.py
+├── src/ # 源代码
+│ ├── gui/ # GUI 模块
+│ │ ├── __init__.py
+│ │ ├── app.py # 应用入口
+│ │ ├── main_window.py # 主窗口
+│ │ ├── controller.py # TrackingController（生命周期管理）🆕
+│ │ ├── workers.py # 工作线程
+│ │ └── widgets/ # 可复用组件
+│ │ ├── video_canvas.py
+│ │ ├── trajectory_list.py
+│ │ └── log_panel.py
 │   ├── core/             # 核心模块
 │   │   ├── detector.py   # 检测器
 │   │   ├── tracker.py    # 跟踪器
@@ -336,6 +337,62 @@ python scripts/verify_api_export.py
 - PySide6 >= 6.5.0（用于 GUI）
 
 ## 最近更新
+
+### 2026-04-17 项目评审指南实施与缺陷修复 🆕
+
+根据 `person_tracking/docs/blue_project_review_guide.md` 完成了进一步的开发改进：
+
+#### 1. 语法错误修复（Blocking Issue）
+- ✅ **修复 main_window.py 缩进错误** - 原始文件存在多处缩进不一致问题，导致 11 个 Worker 集成测试全部失败
+- **问题**: `__init__` 方法内的代码缩进级别错误，Python 解析器报错 `IndentationError: unexpected indent`
+- **修复**: 恢复文件到原始正确状态，重新应用必要的修改
+- **验证**: 91/91 测试全部通过
+
+#### 2. 导出功能完善
+- ✅ **CSV 导出完整实现** - `_export_csv()` 方法从 `trajectory_manager.get_all_trajectories()` 获取轨迹数据，使用 `CSVExporter` 导出为 CSV 文件
+- ✅ **移除无效视频导出调用** - `_on_export()` 方法中原调用 `_export_video()` 的代码已注释移除：
+  ```python
+  # 3. 导出视频 - 暂不支持
+  # video_path = self._export_video(export_path)
+  # if video_path:
+  #     exported_files.append(f"视频: {video_path.name}")
+  ```
+
+#### 3. 冗余代码清理
+- ✅ **删除冗余文件** - 以下文件已从版本控制中删除：
+  - `src/gui/main_window_fix.py` (-31 行)
+  - `src/gui/main_window_fixed_section.py` (-237 行)
+
+#### 4. Controller 增强
+- ✅ **TrackingController 生命周期管理** - `controller.py` 从约 143 行扩展到 433 行（+290 行）
+- 新增功能包括：
+  - `AppState` 枚举：定义应用状态（Idle, Initializing, Running, Paused, Stopped, Error）
+  - 生命周期方法：`initialize()`, `start()`, `pause()`, `resume()`, `stop()`
+  - Pipeline 初始化：`_initialize_pipeline()`
+  - Worker 管理：`_initialize_workers()`, `_stop_workers()`
+  - 回调处理：`_on_capture_frame_ready()`, `_on_inference_result_ready()`, `_on_metrics_updated()`, `_on_worker_error()`
+  - 清理方法：`_cleanup()`
+
+#### 5. 测试验证
+- ✅ **91/91 测试全部通过**
+  - test_types.py: 20 tests
+  - test_config.py: 11 tests
+  - test_trajectory.py: 9 tests
+  - test_csv_exporter.py: 6 tests
+  - test_export_functionality.py: 12 tests
+  - test_parameter_override.py: 19 tests
+  - test_worker_integration.py: 11 tests
+  - test_parameter_override.py (续): 3 tests
+
+#### Git 变更摘要
+```
+ src/gui/controller.py | +290 行（Controller 增强）
+ src/gui/main_window.py | +8 行（注释掉无效视频导出）
+ src/gui/main_window_fix.py | -31 行（已删除）
+ src/gui/main_window_fixed_section.py | -237 行（已删除）
+```
+
+---
 
 ### 2026-04-14 P1/P2 技术债修复完成 🆕
 

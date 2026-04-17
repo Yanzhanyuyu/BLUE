@@ -9,3 +9,6 @@
 2026-04-15 23:38:36 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
 2026-04-15 23:38:36 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
 2026-04-15 23:38:36 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-17 12:29:43 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
+2026-04-17 12:29:43 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
+2026-04-17 12:29:43 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt
