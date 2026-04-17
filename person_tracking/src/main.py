@@ -79,7 +79,7 @@ Examples:
         "-f",
         type=str,
         default=None,
-        help="配置文件路径（YAML）",
+        help="配置文件路径（YAML）。不指定时自动加载 config/default.yaml（若存在）",
     )
 
     parser.add_argument(

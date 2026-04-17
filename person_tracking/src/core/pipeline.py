@@ -21,7 +21,7 @@ from numpy.typing import NDArray
 
 from ultralytics import YOLO
 
-from ..infra.config import Config
+from ..infra.config import Config, resolve_tracker_config_path
 from ..infra.exceptions import VideoLoadError, InferenceError
 from ..infra.logger import get_logger, setup_logger
 from ..data.loader import VideoLoader, VideoWriter
@@ -210,6 +210,9 @@ class TrackingPipeline:
         logger.info(f"Using device: {device}")
         self.model.to(device)
 
+        tracker_cfg_path = resolve_tracker_config_path(self.config.tracker)
+        logger.info(f"Using tracker config: {tracker_cfg_path}")
+
         # 初始化可视化器
         self.visualizer = Visualizer(self.config.visualizer)
 
@@ -229,11 +232,12 @@ class TrackingPipeline:
 
         logger.debug("Warming up model...")
         dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        tracker_cfg_path = resolve_tracker_config_path(self.config.tracker)
         _ = self.model.track(
             dummy_frame,
             conf=self.config.detector.confidence_threshold,
             classes=self.config.detector.classes,
-            tracker=f"{self.config.tracker.tracker_type}.yaml",
+            tracker=tracker_cfg_path,
             persist=True,
             verbose=False,
         )
@@ -266,13 +270,14 @@ class TrackingPipeline:
 
         # 使用 YOLO 的 track 方法同时进行检测和跟踪
         if enable_tracking:
+            tracker_cfg_path = resolve_tracker_config_path(self.config.tracker)
             results = self.model.track(
                 frame.image,
                 conf=self.config.detector.confidence_threshold,
                 iou=self.config.detector.iou_threshold,
                 classes=self.config.detector.classes,
                 imgsz=self.config.detector.imgsz,
-                tracker=f"{self.config.tracker.tracker_type}.yaml",
+                tracker=tracker_cfg_path,
                 persist=True,
                 verbose=False,
             )

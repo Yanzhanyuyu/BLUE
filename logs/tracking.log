@@ -12,3 +12,23 @@
 2026-04-17 12:29:43 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
 2026-04-17 12:29:43 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
 2026-04-17 12:29:43 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-17 16:35:22 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
+2026-04-17 16:35:22 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
+2026-04-17 16:35:23 | INFO     | src.core.pipeline:_setup_components:214 | Using tracker config: C:\Users\YanYu\Desktop\BLUE\person_tracking\config\bytetrack.yaml
+2026-04-17 16:35:23 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-17 16:35:54 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
+2026-04-17 16:35:54 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
+2026-04-17 16:35:54 | INFO     | src.core.pipeline:_setup_components:214 | Using tracker config: C:\Users\YanYu\Desktop\BLUE\person_tracking\config\bytetrack.yaml
+2026-04-17 16:35:54 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-17 16:36:01 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
+2026-04-17 16:36:01 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
+2026-04-17 16:36:01 | INFO     | src.core.pipeline:_setup_components:214 | Using tracker config: C:\Users\YanYu\Desktop\BLUE\person_tracking\config\bytetrack.yaml
+2026-04-17 16:36:01 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-17 16:37:06 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
+2026-04-17 16:37:06 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
+2026-04-17 16:37:06 | INFO     | src.core.pipeline:_setup_components:214 | Using tracker config: C:\Users\YanYu\Desktop\BLUE\person_tracking\config\bytetrack.yaml
+2026-04-17 16:37:06 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-17 16:45:18 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
+2026-04-17 16:45:19 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
+2026-04-17 16:45:19 | INFO     | src.core.pipeline:_setup_components:214 | Using tracker config: C:\Users\YanYu\Desktop\BLUE\person_tracking\config\bytetrack.yaml
+2026-04-17 16:45:19 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt

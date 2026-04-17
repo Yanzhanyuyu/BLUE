@@ -8,6 +8,7 @@
 """
 
 import time
+import threading
 import numpy as np
 from numpy.typing import NDArray
 from typing import Optional, Any
@@ -246,7 +247,8 @@ class InferenceWorker(QThread):
 
         # 帧队列 (只保留最新帧)
         self._latest_frame: Optional[FrameData] = None
-        self._frame_lock = None  # 简化处理：使用原子操作
+        self._frame_lock = threading.Lock()
+        self._last_processed_frame_id = -1
 
         # 统一性能收集器（解决FPS多源计算问题）
         self._metrics_collector = MetricsCollector()
@@ -269,6 +271,8 @@ class InferenceWorker(QThread):
                 self._iou_threshold = config.detector.iou_threshold
             if hasattr(config, 'pipeline'):
                 self._skip_frames = config.pipeline.skip_frames
+            if hasattr(config, 'visualizer') and hasattr(config.visualizer, 'show_trajectory'):
+                self._show_trajectory = config.visualizer.show_trajectory
     
     def set_skip_frames(self, skip: int) -> None:
         """设置跳帧数"""
@@ -277,14 +281,30 @@ class InferenceWorker(QThread):
     def set_confidence_threshold(self, threshold: float) -> None:
         """设置置信度阈值"""
         self._confidence_threshold = max(0.0, min(1.0, threshold))
+        if self._pipeline is not None and hasattr(self._pipeline, 'config'):
+            self._pipeline.config.detector.confidence_threshold = self._confidence_threshold
+
+    def set_iou_threshold(self, threshold: float) -> None:
+        """设置 IOU 阈值"""
+        self._iou_threshold = max(0.0, min(1.0, threshold))
+        if self._pipeline is not None and hasattr(self._pipeline, 'config'):
+            self._pipeline.config.detector.iou_threshold = self._iou_threshold
     
     def set_show_trajectory(self, show: bool) -> None:
         """设置是否显示轨迹"""
         self._show_trajectory = show
+        if self._pipeline is not None and hasattr(self._pipeline, 'visualizer'):
+            self._pipeline.visualizer.config.show_trajectory = show
     
     def set_pipeline(self, pipeline: Any) -> None:
         """设置处理管道"""
         self._pipeline = pipeline
+        # 同步已缓存的运行时参数到 pipeline
+        if self._pipeline is not None and hasattr(self._pipeline, 'config'):
+            self._pipeline.config.detector.confidence_threshold = self._confidence_threshold
+            self._pipeline.config.detector.iou_threshold = self._iou_threshold
+        if self._pipeline is not None and hasattr(self._pipeline, 'visualizer'):
+            self._pipeline.visualizer.config.show_trajectory = self._show_trajectory
     
     def submit_frame(self, frame_data: FrameData) -> None:
         """提交帧进行处理 (线程安全)
@@ -292,7 +312,18 @@ class InferenceWorker(QThread):
         Args:
             frame_data: 帧数据
         """
-        self._latest_frame = frame_data
+        with self._frame_lock:
+            self._latest_frame = frame_data
+
+    def _take_latest_frame(self) -> Optional[FrameData]:
+        """原子获取并清空最新帧。
+
+        这可确保每帧最多被消费一次，避免无新输入时重复推理旧帧。
+        """
+        with self._frame_lock:
+            frame_data = self._latest_frame
+            self._latest_frame = None
+            return frame_data
     
     def run(self) -> None:
         """线程主循环 - 修复跳帧连续性
@@ -302,6 +333,8 @@ class InferenceWorker(QThread):
         - 只在 Pipeline 中渲染，Worker 不重复渲染
         """
         self._is_running = True
+        self._frame_counter = 0
+        self._last_processed_frame_id = -1
         self._metrics_collector.start()
 
         # 等待 pipeline 初始化
@@ -326,11 +359,16 @@ class InferenceWorker(QThread):
             if not self._is_running:
                 break
 
-            # 获取最新帧
-            frame_data = self._latest_frame
+            # 原子取走最新帧，避免重复消费旧帧
+            frame_data = self._take_latest_frame()
             if frame_data is None:
                 time.sleep(0.001)
                 continue
+
+            # 防止重复处理同一帧（例如外部重复提交相同 frame_id）
+            if frame_data.frame_id <= self._last_processed_frame_id:
+                continue
+            self._last_processed_frame_id = frame_data.frame_id
 
             # 跳帧逻辑 - 修复：保持视觉连续性
             self._frame_counter += 1
@@ -427,7 +465,8 @@ class InferenceWorker(QThread):
                     'fps': metrics.fps,
                     'inference_time': inference_time_ms,
                     'detection_count': len(tracked_objects),
-                    'frame_count': metrics.frame_count
+                    'frame_count': metrics.frame_count,
+                    'frame_id': frame_data.frame_id,
                 })
 
             except Exception as e:
@@ -440,6 +479,8 @@ class InferenceWorker(QThread):
         """停止线程"""
         self._is_running = False
         self._is_paused = False
+        with self._frame_lock:
+            self._latest_frame = None
     
     def pause(self) -> None:
         """暂停"""

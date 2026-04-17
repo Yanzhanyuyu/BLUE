@@ -113,6 +113,41 @@ class TestInferenceWorker:
         worker.set_pipeline(mock_pipeline)
         assert worker._pipeline is mock_pipeline
 
+    def test_no_reprocess_without_new_frame(self):
+        """测试没有新帧时不会重复处理旧帧"""
+        from src.gui.workers import InferenceWorker, FrameData
+
+        class DummyTrajectoryManager:
+            def get_all_recent_points(self, n=50):
+                return {}
+
+        class DummyPipeline:
+            def __init__(self):
+                self.call_count = 0
+                self.trajectory_manager = DummyTrajectoryManager()
+
+            def process_frame(self, data_frame, enable_tracking=True, render=True):
+                self.call_count += 1
+                return data_frame, []
+
+        worker = InferenceWorker()
+        pipeline = DummyPipeline()
+        worker.set_pipeline(pipeline)
+
+        worker.start()
+        time.sleep(0.02)
+
+        frame = np.zeros((64, 64, 3), dtype=np.uint8)
+        worker.submit_frame(FrameData(frame=frame, frame_id=1, timestamp=time.time()))
+
+        # 给线程留足够时间，如果存在旧逻辑会重复处理同一帧
+        time.sleep(0.12)
+
+        worker.stop()
+        worker.wait(1000)
+
+        assert pipeline.call_count == 1
+
 
 @pytest.mark.skipif(not PYSIDE6_AVAILABLE, reason="PySide6 not available")
 class TestWorkerDataClasses:
