@@ -26,8 +26,8 @@ detector:
   # NMS IOU 阈值 [0.0, 1.0]
   iou_threshold: 0.45
   
-  # 推理设备 (cuda, cpu, mps)
-  device: "cuda"
+  # 推理设备 (auto, cuda, cpu, mps)
+  device: "auto"
   
   # 检测类别 (COCO: person=0)
   classes: [0]
@@ -41,6 +41,9 @@ detector:
 tracker:
   # 跟踪器类型 (bytetrack, botsort)
   tracker_type: "bytetrack"
+
+  # 跟踪器配置文件路径（相对项目根目录）
+  tracker_config_path: "config/bytetrack.yaml"
   
   # 轨迹缓冲帧数 (跟踪对象消失后保留的帧数)
   track_buffer: 30

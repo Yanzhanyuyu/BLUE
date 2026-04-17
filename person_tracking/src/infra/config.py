@@ -21,6 +21,11 @@ import yaml
 from pydantic import BaseModel, Field, field_validator
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "default.yaml"
+DEFAULT_BYTETRACK_CONFIG_PATH = PROJECT_ROOT / "config" / "bytetrack.yaml"
+
+
 # ============================================================================
 # 配置类定义
 # ============================================================================
@@ -128,6 +133,10 @@ class TrackerConfig(BaseModel):
         ge=0.0,
         le=1.0,
         description="新建轨迹阈值",
+    )
+    tracker_config_path: Optional[str] = Field(
+        default=None,
+        description="跟踪器配置文件路径（推荐填写项目内 config/bytetrack.yaml）",
     )
 
 
@@ -306,7 +315,7 @@ def load_config(config_path: Optional[str | Path] = None) -> Config:
     从 YAML 文件加载配置，并进行验证。
 
     Args:
-        config_path: 配置文件路径，为 None 使用默认配置
+        config_path: 配置文件路径；为 None 时自动尝试加载项目内 config/default.yaml
 
     Returns:
         验证后的 Config 实例
@@ -321,11 +330,18 @@ def load_config(config_path: Optional[str | Path] = None) -> Config:
     """
     from .exceptions import ConfigurationError
 
-    # 如果未指定配置文件，返回默认配置
+    # 如果未指定配置文件，优先使用项目默认配置文件
     if config_path is None:
-        return Config()
+        if DEFAULT_CONFIG_PATH.exists():
+            config_path = DEFAULT_CONFIG_PATH
+        else:
+            return Config()
 
     config_path = Path(config_path)
+
+    # 相对路径按项目根目录解析
+    if not config_path.is_absolute():
+        config_path = PROJECT_ROOT / config_path
 
     # 检查文件是否存在
     if not config_path.exists():
@@ -397,6 +413,30 @@ def save_config(config: Config, output_path: str | Path) -> None:
 
     with open(output_path, "w", encoding="utf-8") as f:
         yaml.dump(config_dict, f, Dumper=TupleDumper, default_flow_style=False, allow_unicode=True)
+
+
+def resolve_tracker_config_path(tracker_config: TrackerConfig) -> str:
+    """解析跟踪器配置路径。
+
+    解析优先级：
+    1. tracker_config_path（显式配置）
+    2. 项目内 config/bytetrack.yaml（当 tracker_type=bytetrack）
+    3. Ultralytics 外部默认字符串（如 bytetrack.yaml）
+    """
+    configured_path = tracker_config.tracker_config_path
+    if configured_path:
+        candidate = Path(configured_path)
+        if not candidate.is_absolute():
+            candidate = PROJECT_ROOT / candidate
+        if candidate.exists():
+            return str(candidate)
+        # 显式配置但文件不存在时保留原值，交由调用方报错
+        return str(configured_path)
+
+    if tracker_config.tracker_type == "bytetrack" and DEFAULT_BYTETRACK_CONFIG_PATH.exists():
+        return str(DEFAULT_BYTETRACK_CONFIG_PATH)
+
+    return f"{tracker_config.tracker_type}.yaml"
 
 
 # ============================================================================

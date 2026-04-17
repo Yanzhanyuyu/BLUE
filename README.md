@@ -72,7 +72,7 @@ run_gui()
 | 状态监控 | FPS、检测数、目标列表 |
 | 轨迹历史 | 查看选中目标的轨迹记录 |
 | 日志面板 | 系统运行日志实时显示 |
-| 结果导出 | 导出视频和 CSV 日志 |
+| 结果导出 | 导出 tracks.csv 与 trajectory_stats.json（视频导出入口已禁用） |
 
 ### Python API
 
@@ -119,6 +119,8 @@ print(f"处理完成: {stats['total_frames']} 帧, {stats['avg_fps']:.1f} FPS")
 │       config.py │ logger.py │ exceptions.py │ loader.py     │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+> 注：`src/gui/controller.py` 当前为废弃兼容壳，真实运行路径以 `src/gui/main_window.py` 为准。
 
 ### 数据流说明
 
@@ -310,8 +312,9 @@ python scripts/verify_api_export.py
 |--------|------|--------|
 | detector.model_path | 模型路径 | yolo11n.pt |
 | detector.confidence_threshold | 检测置信度 | 0.5 |
-| detector.device | 推理设备 | cuda |
+| detector.device | 推理设备 | auto |
 | tracker.tracker_type | 跟踪器类型 | bytetrack |
+| tracker.tracker_config_path | 跟踪器配置路径 | config/bytetrack.yaml |
 | tracker.track_buffer | 轨迹缓冲帧数 | 30 |
 | visualizer.trajectory_length | 轨迹显示长度 | 50 |
 
@@ -336,6 +339,17 @@ python scripts/verify_api_export.py
 - PySide6 >= 6.5.0（用于 GUI）
 
 ## 最近更新
+
+### 2026-04-17 真实调用链修复与收口 🆕
+
+- ✅ **统一 GUI 唯一主路径**：摄像头定时器路径降级为纯预览，推理统一走 `VideoCaptureWorker + InferenceWorker`。
+- ✅ **修复重复帧推理**：`InferenceWorker` 采用“原子取走 latest_frame + last_processed_frame_id”机制，停止送帧后不再重复处理旧帧。
+- ✅ **打通参数生效链**：`_apply_ui_config_to_pipeline_config()` 完整落地，`_on_config_value_changed()` 区分“可热更新参数”与“需重启参数”。
+- ✅ **修复 MainWindow 导出链**：补全 `_on_export()` / `_export_csv()` / `_export_trajectory_stats()`，稳定导出 `tracks.csv` 与 `trajectory_stats.json`，空数据给出明确提示。
+- ✅ **清理伪架构**：`src/gui/controller.py` 降级为废弃兼容壳，避免并行维护两套 GUI 状态管理逻辑。
+- ✅ **RTSP 入口收口**：GUI 增加 RTSP/HTTP URL 输入与连接逻辑，不再保留假入口。
+- ✅ **配置来源收口**：默认启动自动读取 `config/default.yaml`，并优先使用项目内 `config/bytetrack.yaml`。
+- ✅ **新增回归测试**：覆盖重复帧、摄像头路径互斥、MainWindow 导出链、GUI 参数生效、默认配置来源等关键场景。
 
 ### 2026-04-14 P1/P2 技术债修复完成 🆕
 
