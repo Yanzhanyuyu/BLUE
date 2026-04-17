@@ -79,10 +79,20 @@ class PersonDetector:
             logger.debug(f"Loading model: {self.config.model_path}")
             self._model = YOLO(self.config.model_path)
 
-            # 设置设备
-            if self.config.device != "cuda":
-                # 强制使用指定设备
-                self._model.to(self.config.device)
+            # 设置设备（处理 auto 情况）
+            device = self.config.device
+            if device == "auto":
+                # 自动选择设备
+                import torch
+                if torch.cuda.is_available():
+                    device = "cuda"
+                elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                    device = "mps"
+                else:
+                    device = "cpu"
+            
+            # 将模型移动到指定设备
+            self._model.to(device)
 
             logger.info(f"Model loaded successfully: {self.config.model_path}")
 

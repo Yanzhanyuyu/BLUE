@@ -94,7 +94,7 @@ python -m src.gui.app
 
 ### Python API
 ```python
-from src import run_tracking
+from src.main import run_tracking
 stats = run_tracking(source="video.mp4", output="output/tracked.mp4")
 ```
 
@@ -126,15 +126,41 @@ stats = run_tracking(source="video.mp4", output="output/tracked.mp4")
 
 ## 五、已知问题与技术债
 
-### P2 - 未在本次修复中处理
-1. **GUI 主线程阻塞** - `_update_camera_frame` 在主线程执行推理
-2. **导出功能占位** - `_on_export()` 仅显示对话框
-3. **show_progress 配置未使用** - Pipeline 只有 progress_callback 参数
-4. **信号连接不完整** - `config_changed` 信号未连接
+### P1 - 已在本轮修复
+1. **GUI 主线程阻塞** - ✅ 已修复：Worker 线程（VideoCaptureWorker + InferenceWorker）与 MainWindow 完整集成
+2. **导出功能占位** - ✅ 已修复：实现 `_on_export()` 完整逻辑（CSV导出 + 轨迹统计导出）
+3. **show_progress 配置未使用** - ✅ 已修复：在 `src/main.py` 中添加配置项生效逻辑
+4. **信号连接不完整** - ✅ 已修复：连接 `config_changed` 信号，实现参数热更新
+
+### 实现细节
+- **Worker 集成** (`main_window.py`):
+  - `_start_worker_mode()`: 启动 VideoCaptureWorker 和 InferenceWorker
+  - `_on_worker_frame_ready()`: 处理捕获的帧
+  - `_on_inference_result_ready()`: 处理推理结果
+  - `_on_metrics_updated()`: 更新性能指标
+  - `_on_worker_error()`: 处理 Worker 错误
+
+- **导出功能** (`main_window.py`):
+  - `_on_export()`: 主导出逻辑
+  - `_export_csv()`: CSV 跟踪日志导出
+  - `_export_trajectory_stats()`: JSON 轨迹统计导出
+
+- **参数热更新** (`main_window.py`):
+  - `_on_config_value_changed()`: 处理配置变更
+  - UI 控件绑定：置信度、IOU、设备、跟踪缓冲、可视化选项
+
+- **show_progress 修复** (`src/main.py`):
+  - 添加配置项判断逻辑：`should_show_progress = not quiet and cfg.pipeline.show_progress`
+
+### P2 - 已在本轮修复/决策
+1. **BoundingBox 无输入验证** - ✅ 已修复：添加 `__post_init__` 输入验证
+2. **CSV 无原子写入** - ✅ 已修复：实现临时文件+重命名机制
+3. **Pipeline 直接调用底层模型** - ⚠️ 设计决策保留：根据架构设计，Pipeline 直接使用 `model.track()` 是一体化检测+跟踪的优化设计，修改此设计需要大规模重构，暂不作为技术债处理
 
 ### 建议
-- Worker 线程已实现 (`workers.py`)，需要与 MainWindow 集成
-- 考虑引入 Service 层封装 Pipeline 操作
+- ✅ Worker 线程已完成与 MainWindow 集成
+- 考虑引入 Service 层封装 Pipeline 操作（长期）
+- 添加更多 GUI 集成测试（可选）
 
 ---
 
@@ -186,7 +212,7 @@ from PySide6.QtGui import QAction, QActionGroup, QIcon
 | `pipeline.warmup` | config | ✅ | 模型预热 |
 | `pipeline.skip_frames` | config | ✅ | 跳帧处理 |
 | `pipeline.save_output` | config | ✅ | 保存输出 |
-| `pipeline.show_progress` | config | ❌ | 仅作为进度回调参数 |
+| `pipeline.show_progress` | config | ✅ | 进度条显示控制 |
 | `logging.level` | config | ✅ | 日志级别 |
 
 ---

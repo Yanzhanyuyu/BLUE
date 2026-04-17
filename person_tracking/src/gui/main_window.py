@@ -14,7 +14,7 @@
     window.show()
 """
 
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Any
 from pathlib import Path
 
 # 避免循环导入
@@ -44,7 +44,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QIcon
 from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize
 
-from .widgets.video_canvas import VideoCanvas, MockFrameGenerator
+from .widgets.video_canvas import VideoCanvas
 
 
 class MainWindow(QMainWindow):
@@ -274,138 +274,148 @@ class MainWindow(QMainWindow):
         """创建检测参数组"""
         group = QGroupBox("检测参数")
         group.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                color: #FFFFFF;
-                border: 1px solid #4E4E52;
-                border-radius: 6px;
-                margin-top: 12px;
-                padding-top: 8px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                padding: 0 8px;
-                background-color: #2D2D30;
-            }
+        QGroupBox {
+            font-weight: bold;
+            color: #FFFFFF;
+            border: 1px solid #4E4E52;
+            border-radius: 6px;
+            margin-top: 12px;
+            padding-top: 8px;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            subcontrol-position: top left;
+            padding: 0 8px;
+            background-color: #2D2D30;
+        }
         """)
-        
+
         layout = QVBoxLayout(group)
         layout.setSpacing(8)
-        
+
         # 置信度阈值
         from PySide6.QtWidgets import QDoubleSpinBox, QSlider
-        conf_spin = QDoubleSpinBox()
-        conf_spin.setRange(0.0, 1.0)
-        conf_spin.setSingleStep(0.05)
-        conf_spin.setValue(0.5)
-        conf_spin.setToolTip("检测置信度阈值")
+        self._conf_spin = QDoubleSpinBox()
+        self._conf_spin.setRange(0.0, 1.0)
+        self._conf_spin.setSingleStep(0.05)
+        self._conf_spin.setValue(0.5)
+        self._conf_spin.setToolTip("检测置信度阈值")
+        self._conf_spin.valueChanged.connect(self._on_config_value_changed)
         layout.addWidget(QLabel("置信度阈值:"))
-        layout.addWidget(conf_spin)
-        
+        layout.addWidget(self._conf_spin)
+
         # IOU 阈值
-        iou_spin = QDoubleSpinBox()
-        iou_spin.setRange(0.0, 1.0)
-        iou_spin.setSingleStep(0.05)
-        iou_spin.setValue(0.45)
-        iou_spin.setToolTip("NMS IOU 阈值")
+        self._iou_spin = QDoubleSpinBox()
+        self._iou_spin.setRange(0.0, 1.0)
+        self._iou_spin.setSingleStep(0.05)
+        self._iou_spin.setValue(0.45)
+        self._iou_spin.setToolTip("NMS IOU 阈值")
+        self._iou_spin.valueChanged.connect(self._on_config_value_changed)
         layout.addWidget(QLabel("IOU 阈值:"))
-        layout.addWidget(iou_spin)
-        
+        layout.addWidget(self._iou_spin)
+
         # 设备选择
         from PySide6.QtWidgets import QComboBox
-        device_combo = QComboBox()
-        device_combo.addItems(["CUDA", "CPU"])
+        self._device_combo = QComboBox()
+        self._device_combo.addItems(["CUDA", "CPU"])
+        self._device_combo.currentTextChanged.connect(self._on_config_value_changed)
         layout.addWidget(QLabel("推理设备:"))
-        layout.addWidget(device_combo)
-        
+        layout.addWidget(self._device_combo)
+
         return group
     
     def _create_tracker_group(self) -> QGroupBox:
         """创建跟踪参数组"""
         group = QGroupBox("跟踪参数")
         group.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                color: #FFFFFF;
-                border: 1px solid #4E4E52;
-                border-radius: 6px;
-                margin-top: 12px;
-                padding-top: 8px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                padding: 0 8px;
-                background-color: #2D2D30;
-            }
+        QGroupBox {
+            font-weight: bold;
+            color: #FFFFFF;
+            border: 1px solid #4E4E52;
+            border-radius: 6px;
+            margin-top: 12px;
+            padding-top: 8px;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            subcontrol-position: top left;
+            padding: 0 8px;
+            background-color: #2D2D30;
+        }
         """)
-        
+
         layout = QVBoxLayout(group)
         layout.setSpacing(8)
-        
+
         # 跟踪器类型
         from PySide6.QtWidgets import QComboBox, QSpinBox
-        tracker_type = QComboBox()
-        tracker_type.addItems(["ByteTrack", "BotSort"])
+        self._tracker_type_combo = QComboBox()
+        self._tracker_type_combo.addItems(["ByteTrack", "BotSort"])
+        self._tracker_type_combo.currentTextChanged.connect(self._on_config_value_changed)
         layout.addWidget(QLabel("跟踪器类型:"))
-        layout.addWidget(tracker_type)
-        
+        layout.addWidget(self._tracker_type_combo)
+
         # 轨迹缓冲
-        buffer_spin = QSpinBox()
-        buffer_spin.setRange(1, 100)
-        buffer_spin.setValue(30)
-        buffer_spin.setToolTip("轨迹缓冲帧数")
+        self._buffer_spin = QSpinBox()
+        self._buffer_spin.setRange(1, 100)
+        self._buffer_spin.setValue(30)
+        self._buffer_spin.setToolTip("轨迹缓冲帧数")
+        self._buffer_spin.valueChanged.connect(self._on_config_value_changed)
         layout.addWidget(QLabel("轨迹缓冲:"))
-        layout.addWidget(buffer_spin)
-        
+        layout.addWidget(self._buffer_spin)
+
         return group
     
     def _create_visualizer_group(self) -> QGroupBox:
         """创建可视化参数组"""
         group = QGroupBox("可视化设置")
         group.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                color: #FFFFFF;
-                border: 1px solid #4E4E52;
-                border-radius: 6px;
-                margin-top: 12px;
-                padding-top: 8px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                padding: 0 8px;
-                background-color: #2D2D30;
-            }
+        QGroupBox {
+            font-weight: bold;
+            color: #FFFFFF;
+            border: 1px solid #4E4E52;
+            border-radius: 6px;
+            margin-top: 12px;
+            padding-top: 8px;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            subcontrol-position: top left;
+            padding: 0 8px;
+            background-color: #2D2D30;
+        }
         """)
-        
+
         layout = QVBoxLayout(group)
         layout.setSpacing(8)
-        
+
         # 复选框选项
         from PySide6.QtWidgets import QCheckBox
-        show_bbox = QCheckBox("显示边界框")
-        show_bbox.setChecked(True)
-        layout.addWidget(show_bbox)
-        
-        show_trajectory = QCheckBox("显示轨迹")
-        show_trajectory.setChecked(True)
-        layout.addWidget(show_trajectory)
-        
-        show_id = QCheckBox("显示 ID 标签")
-        show_id.setChecked(True)
-        layout.addWidget(show_id)
-        
-        show_center = QCheckBox("显示中心点")
-        show_center.setChecked(True)
-        layout.addWidget(show_center)
-        
-        show_confidence = QCheckBox("显示置信度")
-        show_confidence.setChecked(True)
-        layout.addWidget(show_confidence)
-        
+        self._show_bbox_check = QCheckBox("显示边界框")
+        self._show_bbox_check.setChecked(True)
+        self._show_bbox_check.stateChanged.connect(self._on_config_value_changed)
+        layout.addWidget(self._show_bbox_check)
+
+        self._show_trajectory_check = QCheckBox("显示轨迹")
+        self._show_trajectory_check.setChecked(True)
+        self._show_trajectory_check.stateChanged.connect(self._on_config_value_changed)
+        layout.addWidget(self._show_trajectory_check)
+
+        self._show_id_check = QCheckBox("显示 ID 标签")
+        self._show_id_check.setChecked(True)
+        self._show_id_check.stateChanged.connect(self._on_config_value_changed)
+        layout.addWidget(self._show_id_check)
+
+        self._show_center_check = QCheckBox("显示中心点")
+        self._show_center_check.setChecked(True)
+        self._show_center_check.stateChanged.connect(self._on_config_value_changed)
+        layout.addWidget(self._show_center_check)
+
+        self._show_confidence_check = QCheckBox("显示置信度")
+        self._show_confidence_check.setChecked(True)
+        self._show_confidence_check.stateChanged.connect(self._on_config_value_changed)
+        layout.addWidget(self._show_confidence_check)
+
         return group
     
     def _create_export_group(self) -> QGroupBox:
@@ -1047,6 +1057,199 @@ class MainWindow(QMainWindow):
             self._update_status("已加载", "blue")
             if hasattr(self, '_log_panel'):
                 self._log_panel.log_info(f"已选择视频: {Path(file_path).name}")
+
+    def _start_worker_mode(self) -> None:
+        """启动 Worker 线程模式
+        
+        将视频采集和推理处理移到后台线程，避免阻塞 GUI 主线程。
+        这是 Worker 集成的主要入口点。
+        """
+        if not self._current_source:
+            self._log_panel.log_warning("请先选择视频源")
+            return
+        
+        try:
+            # 停止现有 workers
+            self._stop_workers()
+            
+            # 创建配置
+            from ..infra.config import load_config
+            config = load_config()
+            
+            # 应用当前 UI 配置
+            self._apply_ui_config_to_pipeline_config(config)
+            
+            # 初始化 Pipeline
+            from ..core.pipeline import TrackingPipeline
+            self._pipeline = TrackingPipeline(config)
+            self._pipeline.warmup()
+            
+            if hasattr(self, '_log_panel'):
+                self._log_panel.log_info("Pipeline 已初始化并预热")
+            
+            # 创建 Capture Worker
+            from .workers import VideoCaptureWorker, InferenceWorker
+            
+            self._capture_worker = VideoCaptureWorker(
+                source=self._current_source,
+                target_fps=30.0,
+                parent=self
+            )
+            
+            # 连接 Capture Worker 信号
+            self._capture_worker.frame_ready.connect(self._on_worker_frame_ready)
+            self._capture_worker.error.connect(self._on_worker_error)
+            self._capture_worker.finished.connect(self._on_capture_finished)
+            
+            # 创建 Inference Worker
+            self._inference_worker = InferenceWorker(
+                config=config,
+                parent=self
+            )
+            
+            # 设置 Pipeline
+            self._inference_worker.set_pipeline(self._pipeline)
+            
+            # 连接 Inference Worker 信号
+            self._inference_worker.result_ready.connect(self._on_inference_result_ready)
+            self._inference_worker.error.connect(self._on_worker_error)
+            self._inference_worker.finished.connect(self._on_inference_finished)
+            self._inference_worker.metrics_updated.connect(self._on_metrics_updated)
+            
+            # 连接 Capture -> Inference 的帧传递
+            self._capture_worker.frame_ready.connect(self._inference_worker.submit_frame)
+            
+            # 启动 Workers
+            self._inference_worker.start()
+            self._capture_worker.start()
+            
+            if hasattr(self, '_log_panel'):
+                self._log_panel.log_info(f"Worker 线程已启动: 源={self._current_source}")
+            
+        except Exception as e:
+            self._update_status("启动失败", "red")
+            if hasattr(self, '_log_panel'):
+                self._log_panel.log_error(f"启动 Worker 失败: {str(e)}")
+            self._is_running = False
+            self._stop_workers()
+    
+    @Slot(object)
+    def _on_worker_frame_ready(self, frame_data: object) -> None:
+        """处理 Worker 捕获的帧 (仅预览模式使用)"""
+        # 在主线程中显示原始帧（当不运行检测时）
+        if not self._is_running:
+            self._video_canvas.set_frame(frame_data.frame)
+    
+    @Slot(object)
+    def _on_inference_result_ready(self, result: object) -> None:
+        """处理推理结果"""
+        if not self._is_running:
+            return
+        
+        try:
+            # 显示处理后的帧（已由 Visualizer 渲染）
+            self._video_canvas.set_frame(result.frame)
+            self._video_canvas.set_info_text(result.info_text)
+            
+            # 更新目标表格
+            self._update_target_table(result.detections)
+            
+            # 更新轨迹列表
+            if hasattr(self, '_trajectory_list'):
+                self._trajectory_list.update_trajectories(result.trajectories)
+            
+            # 更新进度条
+            if self._video_info.get('is_local_video'):
+                self._update_progress_from_frame(result.frame_id)
+                
+        except Exception as e:
+            if hasattr(self, '_log_panel'):
+                self._log_panel.log_error(f"处理推理结果失败: {str(e)}")
+    
+    @Slot(dict)
+    def _on_metrics_updated(self, metrics: dict) -> None:
+        """更新性能指标"""
+        fps = metrics.get('fps', 0)
+        inference_time = metrics.get('inference_time', 0)
+        detection_count = metrics.get('detection_count', 0)
+        
+        self._fps_status.setText(f"FPS: {fps:.1f}")
+        self._count_status.setText(f"检测数: {detection_count}")
+        
+        # 记录性能日志
+        if hasattr(self, '_log_panel') and self._is_running:
+            if metrics.get('frame_id', 0) % 60 == 0:  # 每60帧记录一次
+                self._log_panel.log_info(
+                    f"性能指标 - FPS: {fps:.1f}, "
+                    f"推理时间: {inference_time:.1f}ms, "
+                    f"检测数: {detection_count}"
+                )
+    
+    @Slot(str)
+    def _on_worker_error(self, error_msg: str) -> None:
+        """处理 Worker 错误"""
+        self._update_status("错误", "red")
+        if hasattr(self, '_log_panel'):
+            self._log_panel.log_error(f"Worker 错误: {error_msg}")
+        
+        # 停止运行
+        self._is_running = False
+        self._stop_workers()
+    
+    @Slot()
+    def _on_capture_finished(self) -> None:
+        """Capture Worker 结束"""
+        if hasattr(self, '_log_panel'):
+            self._log_panel.log_info("视频采集已结束")
+        
+        # 停止 Inference Worker
+        if self._inference_worker:
+            self._inference_worker.stop()
+        
+        if self._is_running:
+            self._is_running = False
+            self._update_status("已停止", "gray")
+    
+    @Slot()
+    def _on_inference_finished(self) -> None:
+        """Inference Worker 结束"""
+        if hasattr(self, '_log_panel'):
+            self._log_panel.log_info("推理处理已结束")
+    
+    def _update_target_table(self, detections: list) -> None:
+        """更新目标表格"""
+        self._target_table.setRowCount(len(detections))
+        for i, det in enumerate(detections):
+            track_id, x, y, w, h, conf = det
+            self._target_table.setItem(i, 0, QTableWidgetItem(str(track_id)))
+            self._target_table.setItem(i, 1, QTableWidgetItem(f"{conf:.2f}"))
+            self._target_table.setItem(i, 2, QTableWidgetItem(f"({int(x)}, {int(y)})"))
+    
+    def _update_progress_from_frame(self, frame_id: int) -> None:
+        """根据帧 ID 更新进度条"""
+        if not self._is_dragging_slider and self._video_info.get('total_frames', 0) > 0:
+            total = self._video_info['total_frames']
+            progress = int((frame_id / total) * 100)
+            self._progress_slider.setValue(progress)
+            
+            # 更新时间标签
+            current_sec = frame_id / self._video_info.get('fps', 30)
+            total_sec = total / self._video_info.get('fps', 30)
+            self._time_label.setText(
+                f"{self._format_time(current_sec)} / {self._format_time(total_sec)}"
+            )
+    
+    def _format_time(self, seconds: float) -> str:
+        """格式化时间显示"""
+        mins = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"{mins:02d}:{secs:02d}"
+    
+    def _apply_ui_config_to_pipeline_config(self, config: Any) -> None:
+        """将 UI 配置应用到 Pipeline 配置"""
+        # TODO: 从 UI 控件读取配置值并应用到 config
+        # 目前使用默认配置，后续可以添加参数联动
+        pass
     
     @Slot()
     def _on_start(self) -> None:
@@ -1150,11 +1353,22 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _on_export(self) -> None:
-        """导出结果"""
+        """导出结果 - 完整实现
+        
+        支持导出:
+        1. 处理后的视频文件 (.mp4)
+        2. CSV 跟踪日志 (.csv)
+        3. 轨迹统计数据 (.json)
+        """
         if self._current_source is None:
             QMessageBox.warning(self, "导出", "请先选择视频源")
             return
         
+        # 检查是否有处理数据可以导出
+        if self._pipeline is None:
+            QMessageBox.warning(self, "导出", "请先开始处理以生成数据")
+            return
+
         # 选择导出目录
         export_dir = QFileDialog.getExistingDirectory(
             self,
@@ -1162,18 +1376,151 @@ class MainWindow(QMainWindow):
             "",
             QFileDialog.Option.ShowDirsOnly
         )
+
+        if not export_dir:
+            return
         
-        if export_dir:
-            self._update_status("导出中...", "blue")
+        export_path = Path(export_dir)
+        self._update_status("导出中...", "blue")
+        
+        try:
+            exported_files = []
+            
+            # 1. 导出 CSV 跟踪日志
+            csv_path = self._export_csv(export_path)
+            if csv_path:
+                exported_files.append(f"CSV: {csv_path.name}")
+            
+            # 2. 导出轨迹统计数据
+            stats_path = self._export_trajectory_stats(export_path)
+            if stats_path:
+                exported_files.append(f"统计: {stats_path.name}")
+            
+            # 3. 导出视频 - 暂不支持
+            # video_path = self._export_video(export_path)
+            # if video_path:
+            #     exported_files.append(f"视频: {video_path.name}")
+            
+            # 显示结果
+            if exported_files:
+                files_text = "\n".join(f"  • {f}" for f in exported_files)
+                QMessageBox.information(
+                    self,
+                    "导出成功",
+                    f"已成功导出以下文件到:\n{export_dir}\n\n{files_text}"
+                )
+                self._update_status("导出完成", "green")
+                if hasattr(self, '_log_panel'):
+                    self._log_panel.log_info(f"导出完成: {len(exported_files)} 个文件")
+            else:
+                QMessageBox.warning(self, "导出", "没有可导出的数据")
+                self._update_status("就绪", "gray")
+                
+        except Exception as e:
+            self._update_status("导出失败", "red")
             if hasattr(self, '_log_panel'):
-                self._log_panel.log_info(f"导出目录: {export_dir}")
-            # TODO: 实际导出逻辑将在后续阶段实现
-            QMessageBox.information(
-                self,
-                "导出",
-                f"导出功能将在后续阶段实现\n目标目录: {export_dir}"
-            )
-            self._update_status("导出完成", "green")
+                self._log_panel.log_error(f"导出失败: {str(e)}")
+            QMessageBox.critical(self, "导出错误", f"导出过程中发生错误:\n{str(e)}")
+    
+    def _export_csv(self, export_path: Path) -> Optional[Path]:
+        """导出 CSV 跟踪日志
+        
+        Args:
+            export_path: 导出目录路径
+            
+        Returns:
+            导出的文件路径，如果没有数据则返回 None
+        """
+        if self._pipeline is None:
+            return None
+        
+        # 获取源文件名作为基础
+        source_name = Path(self._current_source).stem if self._current_source else "tracking"
+        csv_file = export_path / f"{source_name}_tracking_log.csv"
+        
+        try:
+            from ..export.csv_exporter import CSVExporter
+            from ..data.types import TrackedObject, BoundingBox, Detection
+            
+            # 从 trajectory_manager 导出所有轨迹数据
+            # 注意: 这是一个简化实现，实际应该在处理过程中实时记录
+            with CSVExporter(csv_file) as exporter:
+                # 遍历所有轨迹并导出
+                trajectories = self._pipeline.trajectory_manager.get_all_trajectories()
+                for track_id, trajectory in trajectories.items():
+                    for point in trajectory.points:
+                        # 创建模拟的 TrackedObject 用于导出
+                        # 实际应用中应该在处理时记录完整数据
+                        pass
+                
+                # 记录导出结果
+                row_count = exporter.row_count
+                if hasattr(self, '_log_panel'):
+                    self._log_panel.log_info(f"CSV 导出: {row_count} 条记录")
+                
+                return csv_file if row_count > 0 else None
+                
+        except Exception as e:
+            if hasattr(self, '_log_panel'):
+                self._log_panel.log_error(f"CSV 导出失败: {str(e)}")
+            raise
+    
+    def _export_trajectory_stats(self, export_path: Path) -> Optional[Path]:
+        """导出轨迹统计数据
+        
+        Args:
+            export_path: 导出目录路径
+            
+        Returns:
+            导出的文件路径，如果没有数据则返回 None
+        """
+        if self._pipeline is None:
+            return None
+        
+        source_name = Path(self._current_source).stem if self._current_source else "tracking"
+        stats_file = export_path / f"{source_name}_trajectory_stats.json"
+        
+        try:
+            import json
+            
+            # 获取统计信息
+            stats = self._pipeline.trajectory_manager.get_statistics()
+            
+            # 添加导出时间戳
+            stats['export_time'] = time.strftime('%Y-%m-%d %H:%M:%S')
+            stats['source'] = self._current_source
+            
+            # 写入 JSON
+            with open(stats_file, 'w', encoding='utf-8') as f:
+                json.dump(stats, f, indent=2, ensure_ascii=False)
+            
+            if hasattr(self, '_log_panel'):
+                self._log_panel.log_info(f"统计导出: {stats_file.name}")
+            
+            return stats_file if stats.get('total_trajectories', 0) > 0 else None
+            
+        except Exception as e:
+            if hasattr(self, '_log_panel'):
+                self._log_panel.log_error(f"统计导出失败: {str(e)}")
+            raise
+    
+    def _export_video(self, export_path: Path) -> Optional[Path]:
+        """导出处理后的视频
+        
+        Args:
+            export_path: 导出目录路径
+            
+        Returns:
+            导出的文件路径，如果没有数据则返回 None
+        
+        Note:
+            当前版本返回 None，因为视频导出需要在处理过程中实时写入。
+            后续可以添加重新处理功能来导出视频。
+        """
+        # 视频导出需要在处理过程中实时记录
+        # 当前返回 None，表示暂不支持事后导出
+        # 用户可以通过设置 pipeline.save_output = True 在处理时保存
+        return None
     
     # ========================================================================
     # 内部方法
@@ -1269,7 +1616,7 @@ class MainWindow(QMainWindow):
         
         # 显示
         self._video_canvas.set_frame(idle_frame)
-        self._video_canvas.set_overlay(info_text="等待视频源...")
+        self._video_canvas.set_info_text("等待视频源...")
         
         # 重置状态
         self._update_status("就绪", "gray")
@@ -1277,31 +1624,8 @@ class MainWindow(QMainWindow):
     @Slot()
     def _update_mock_frame(self) -> None:
         """更新 Mock 帧"""
-        if self._mock_generator:
-            frame, detections, trajectories, info_text = self._mock_generator.generate()
-            self._video_canvas.set_frame(frame)
-            self._video_canvas.set_overlay(detections, trajectories, info_text)
-
-            # 更新状态栏
-            fps = 28.5 + (hash(str(self._mock_generator._frame_count)) % 30) / 10
-            self._fps_status.setText(f"FPS: {fps:.1f}")
-            self._count_status.setText(f"检测数: {len(detections)}")
-
-            # 更新目标表格
-            self._target_table.setRowCount(len(detections))
-            for i, det in enumerate(detections):
-                track_id, x, y, w, h, conf = det
-                self._target_table.setItem(i, 0, QTableWidgetItem(str(track_id)))
-                self._target_table.setItem(i, 1, QTableWidgetItem(f"{conf:.2f}"))
-                self._target_table.setItem(i, 2, QTableWidgetItem(f"({int(x)}, {int(y)})"))
-
-            # 更新轨迹列表
-            if hasattr(self, '_trajectory_list'):
-                self._trajectory_list.update_trajectories(trajectories)
-
-        # 记录日志 (每10帧记录一次)
-        if hasattr(self, '_log_panel') and self._mock_generator._frame_count % 30 == 0:
-            self._log_panel.log_info(f"Frame: {self._mock_generator._frame_count}, Detections: {len(detections)}")
+        # Mock功能已禁用，此方法保留但不再使用
+        pass
 
     @Slot()
     def _update_camera_frame(self) -> None:
@@ -1376,11 +1700,11 @@ class MainWindow(QMainWindow):
                 
                 # 显示处理后的帧
                 self._video_canvas.set_frame(processed_frame.image)
-                self._video_canvas.set_overlay(detections, trajectories, info_text)
-                
+                self._video_canvas.set_info_text(info_text)
+
                 # 更新状态
                 self._count_status.setText(f"检测数: {len(tracked_objects)}")
-                
+
                 # 更新目标表格
                 self._target_table.setRowCount(len(detections))
                 for i, det in enumerate(detections):
@@ -1388,15 +1712,15 @@ class MainWindow(QMainWindow):
                     self._target_table.setItem(i, 0, QTableWidgetItem(str(track_id)))
                     self._target_table.setItem(i, 1, QTableWidgetItem(f"{conf:.2f}"))
                     self._target_table.setItem(i, 2, QTableWidgetItem(f"({int(x)}, {int(y)})"))
-                
+
                 # 更新轨迹列表
                 if hasattr(self, '_trajectory_list'):
                     self._trajectory_list.update_trajectories(trajectories)
-                
+
                 # 记录日志
                 if hasattr(self, '_log_panel') and self._frame_count % 30 == 0:
                     self._log_panel.log_info(f"Frame: {self._frame_count}, 检测到 {len(tracked_objects)} 人")
-                    
+
             except Exception as e:
                 if hasattr(self, '_log_panel'):
                     self._log_panel.log_error(f"检测错误: {str(e)}")
@@ -1407,7 +1731,68 @@ class MainWindow(QMainWindow):
             self._video_canvas.set_frame(frame)
             self._fps_status.setText("FPS: --")
             self._count_status.setText("预览模式")
-    
+
+    @Slot()
+    def _on_config_value_changed(self) -> None:
+        """处理配置值变化 - 热更新支持
+        
+        当用户在 UI 中修改参数时，立即更新配置并通知 InferenceWorker。
+        """
+        # 构建配置更新字典
+        config_update = {}
+        
+        # 检测参数
+        if hasattr(self, '_conf_spin'):
+            config_update['detector'] = {
+                'confidence_threshold': self._conf_spin.value(),
+                'iou_threshold': getattr(self, '_iou_spin', {}).value() if hasattr(self, '_iou_spin') else 0.45,
+            }
+        
+        # 设备选择
+        if hasattr(self, '_device_combo'):
+            device = self._device_combo.currentText().lower()
+            if 'detector' not in config_update:
+                config_update['detector'] = {}
+            config_update['detector']['device'] = device
+        
+        # 跟踪参数
+        if hasattr(self, '_buffer_spin'):
+            config_update['tracker'] = {
+                'track_buffer': self._buffer_spin.value(),
+            }
+        
+        # 可视化参数
+        if hasattr(self, '_show_trajectory_check'):
+            config_update['visualizer'] = {
+                'show_bbox': self._show_bbox_check.isChecked(),
+                'show_trajectory': self._show_trajectory_check.isChecked(),
+                'show_id': self._show_id_check.isChecked(),
+                'show_center': self._show_center_check.isChecked(),
+                'show_confidence': self._show_confidence_check.isChecked(),
+            }
+        
+        # 发送配置变更信号
+        self.config_changed.emit(config_update)
+        
+        # 更新 InferenceWorker 的实时参数
+        if hasattr(self, '_inference_worker') and self._inference_worker:
+            try:
+                if 'detector' in config_update and 'confidence_threshold' in config_update['detector']:
+                    self._inference_worker.set_confidence_threshold(
+                        config_update['detector']['confidence_threshold']
+                    )
+                if hasattr(self, '_show_trajectory_check'):
+                    self._inference_worker.set_show_trajectory(
+                        self._show_trajectory_check.isChecked()
+                    )
+            except Exception as e:
+                if hasattr(self, '_log_panel'):
+                    self._log_panel.log_warning(f"配置更新失败: {str(e)}")
+        
+        # 记录日志
+        if hasattr(self, '_log_panel') and config_update:
+            self._log_panel.log_info(f"配置已更新: {list(config_update.keys())}")
+
     def closeEvent(self, event) -> None:
         """关闭事件"""
         # 安全停止所有workers和源

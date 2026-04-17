@@ -57,6 +57,7 @@ class Visualizer:
         """渲染检测结果
 
         在帧上绘制边界框、ID标签、轨迹、中心点等。
+        根据配置开关决定是否绘制各元素。
 
         Args:
             frame: 原始帧图像（BGR 格式）
@@ -74,12 +75,14 @@ class Visualizer:
         annotated = frame.copy()
 
         # 绘制轨迹（先绘制，避免遮挡边界框）
-        if self.config.trajectory_length > 0:
+        # 根据配置开关决定是否绘制
+        if self.config.show_trajectory and self.config.trajectory_length > 0:
             annotated = self._draw_trajectories(annotated, trajectories)
 
         # 绘制边界框和标签
-        for obj in tracked_objects:
-            annotated = self._draw_bbox(annotated, obj)
+        if self.config.show_bbox:
+            for obj in tracked_objects:
+                annotated = self._draw_bbox(annotated, obj)
 
         return annotated
 
@@ -89,6 +92,8 @@ class Visualizer:
         tracked_obj: TrackedObject,
     ) -> NDArray[np.uint8]:
         """绘制单个边界框
+
+        根据配置开关决定是否绘制边界框、中心点和标签。
 
         Args:
             frame: 帧图像
@@ -107,16 +112,17 @@ class Visualizer:
         x1, y1 = int(bbox.x), int(bbox.y)
         x2, y2 = int(bbox.x + bbox.w), int(bbox.y + bbox.h)
 
-        # 绘制边界框
-        cv2.rectangle(
-            frame,
-            (x1, y1),
-            (x2, y2),
-            color,
-            self.config.line_thickness,
-        )
+        # 绘制边界框（根据配置开关）
+        if self.config.show_bbox:
+            cv2.rectangle(
+                frame,
+                (x1, y1),
+                (x2, y2),
+                color,
+                self.config.line_thickness,
+            )
 
-        # 绘制中心点
+        # 绘制中心点（根据配置开关）
         if self.config.show_center_point:
             center = bbox.center
             cv2.circle(
@@ -127,38 +133,44 @@ class Visualizer:
                 thickness=-1,  # 填充
             )
 
-        # 绘制标签
-        label = f"ID:{track_id}"
+        # 构建标签（根据配置开关）
+        label_parts = []
+        if self.config.show_id:
+            label_parts.append(f"ID:{track_id}")
         if self.config.show_confidence:
-            label += f" {tracked_obj.confidence:.2f}"
+            label_parts.append(f"{tracked_obj.confidence:.2f}")
 
-        # 标签背景
-        (label_w, label_h), baseline = cv2.getTextSize(
-            label,
-            cv2.FONT_HERSHEY_SIMPLEX,
-            self.config.font_scale,
-            1,
-        )
+        # 绘制标签
+        if label_parts:
+            label = " ".join(label_parts)
 
-        cv2.rectangle(
-            frame,
-            (x1, y1 - label_h - baseline - 5),
-            (x1 + label_w, y1),
-            color,
-            -1,  # 填充
-        )
+            # 标签背景
+            (label_w, label_h), baseline = cv2.getTextSize(
+                label,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                self.config.font_scale,
+                1,
+            )
 
-        # 标签文本
-        cv2.putText(
-            frame,
-            label,
-            (x1, y1 - baseline - 2),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            self.config.font_scale,
-            self.config.text_color,
-            1,
-            cv2.LINE_AA,
-        )
+            cv2.rectangle(
+                frame,
+                (x1, y1 - label_h - baseline - 5),
+                (x1 + label_w, y1),
+                color,
+                -1,  # 填充
+            )
+
+            # 标签文本
+            cv2.putText(
+                frame,
+                label,
+                (x1, y1 - baseline - 2),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                self.config.font_scale,
+                self.config.text_color,
+                1,
+                cv2.LINE_AA,
+            )
 
         return frame
 

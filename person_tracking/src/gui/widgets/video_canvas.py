@@ -1,16 +1,23 @@
-"""视频画布组件
+"""视频画布组件 - 纯显示层（重构后）
 
-用于显示视频帧和叠加检测结果的可视化组件。
+用于显示已由 Visualizer 渲染好的帧，不再负责任何检测框、轨迹、ID的绘制。
 
-功能:
-- 显示 OpenCV 图像 (BGR 格式自动转换)
-- 支持图像缩放和居中显示
-- 支持绘制检测框、轨迹线、ID 标签
-- 支持鼠标交互 (缩放、平移)
+职责：
+- 显示已由 Pipeline/Visualizer 渲染好的帧
+- 高质量缩放显示（SmoothTransformation）
+- 鼠标交互（缩放、平移）
+- 信息文本显示（帧号、FPS等）
 
-使用方式:
-    canvas = VideoCanvas()
-    canvas.set_frame(frame_image)  # numpy array
+使用方式：
+canvas = VideoCanvas()
+canvas.set_frame(rendered_frame)  # 必须是已由 Visualizer 渲染的帧
+
+重构说明：
+- 移除了 _draw_overlay 方法（不再二次绘制）
+- 移除了所有 OpenCV 绘制代码
+- 移除了硬编码颜色常量（颜色由 VisualizerConfig 控制）
+- set_frame 现在只接收已渲染的帧
+- 缩放改为高质量模式（SmoothTransformation）
 """
 
 from typing import Optional
@@ -21,61 +28,45 @@ from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QLabel,
-    QScrollArea,
     QSizePolicy,
 )
-from PySide6.QtCore import Qt, Signal, QSize, QPoint, QRect
+from PySide6.QtCore import Qt, Signal, QSize, QPoint
 from PySide6.QtGui import (
     QImage,
     QPixmap,
-    QPainter,
-    QColor,
-    QPen,
-    QFont,
     QMouseEvent,
     QWheelEvent,
 )
 
 
 class VideoCanvas(QWidget):
-    """视频画布组件
-    
-    用于显示视频帧和叠加检测结果的可视化组件。
-    支持图像缩放、居中显示和鼠标交互。
-    
-    Attributes:
-        zoom_factor: 当前缩放因子
-        min_zoom: 最小缩放比例
-        max_zoom: 最大缩放比例
-        
-    Signals:
-        frame_clicked: 点击帧时发出, 参数为 (x, y) 坐标
-        zoom_changed: 缩放变化时发出, 参数为新的缩放因子
+    """视频画布组件 - 纯显示层
+
+    重要：本组件不负责任何可视化元素的绘制。
+    所有边界框、轨迹、ID、文字都应由 Visualizer 在 Pipeline 层完成渲染，
+    本组件仅负责将已渲染的帧高质量地显示出来。
+
+    信号：
+        frame_clicked: 点击画布时发出，参数为 (x, y) 坐标
+        zoom_changed: 缩放变化时发出，参数为新的缩放因子
     """
-    
+
     # 信号定义
     frame_clicked = Signal(int, int)  # 点击坐标
-    zoom_changed = Signal(float)  # 缩放因子
-    
-    # 配色常量 (从设计文档)
-    COLOR_BOX = QColor(0, 255, 0)  # 边界框颜色
-    COLOR_TEXT = QColor(255, 255, 255)  # 文本颜色
-    COLOR_TRAJECTORY = QColor(255, 0, 0)  # 轨迹颜色
-    COLOR_CENTER_POINT = QColor(255, 255, 0)  # 中心点颜色
+    zoom_changed = Signal(float)  # 缩放因子变化
     
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         """初始化视频画布
-        
+
         Args:
             parent: 父组件
         """
         super().__init__(parent)
-        
+
         # 内部状态
         self._current_frame: Optional[NDArray[np.uint8]] = None
         self._current_pixmap: Optional[QPixmap] = None
-        self._overlay_data: dict = {}  # 叠加层数据
-        
+
         # 缩放和平移状态
         self._zoom_factor: float = 1.0
         self._min_zoom: float = 0.1
@@ -83,7 +74,13 @@ class VideoCanvas(QWidget):
         self._pan_offset: QPoint = QPoint(0, 0)
         self._is_panning: bool = False
         self._last_mouse_pos: QPoint = QPoint()
-        
+
+        # 高质量渲染标志
+        self._high_quality_render: bool = True
+
+        # 信息文本
+        self._info_text: str = ""
+
         # 初始化 UI
         self._init_ui()
         self._apply_style()
@@ -126,9 +123,11 @@ class VideoCanvas(QWidget):
         self._image_label.setParent(self)
         self._info_label.setParent(self)
         self._info_label.raise_()
-        
-        self._layout.addWidget(self._image_label)
-    
+
+        # 注意：图像标签不添加到布局，由代码手动控制位置（居中显示）
+        # 这样可以避免布局刷新导致的位置跳动问题
+        # _info_label 也不添加到布局，使用绝对位置固定在左上角
+
     def _apply_style(self) -> None:
         """应用样式"""
         self.setStyleSheet("""
@@ -143,43 +142,36 @@ class VideoCanvas(QWidget):
     # 公共方法
     # ========================================================================
     
-    def set_frame(self, frame: NDArray[np.uint8], copy: bool = False) -> None:
-        """设置当前显示的帧
-        
+    def set_frame(self, frame: NDArray[np.uint8]) -> None:
+        """设置当前显示的帧（必须是已渲染的帧）
+
+        重要：传入的 frame 必须已由 Visualizer.render() 渲染完成，
+        包含检测框、轨迹、ID、文字等所有可视化元素。
+        本方法不负责任何绘制，只负责显示。
+
         Args:
-            frame: BGR 格式的图像数组 (H, W, C)
+            frame: BGR 格式的图像数组 (H, W, C)，已由 Visualizer 渲染
         """
         if frame is None or frame.size == 0:
             return
-        
-        self._current_frame = frame.copy() if copy else frame
+
+        self._current_frame = frame
         self._update_display()
     
-    def set_overlay(
-        self,
-        detections: Optional[list] = None,
-        trajectories: Optional[dict] = None,
-        info_text: Optional[str] = None,
-    ) -> None:
-        """设置叠加层数据
-        
+    def set_info_text(self, text: str) -> None:
+        """设置信息文本（显示在左上角）
+
         Args:
-            detections: 检测结果列表, 每个元素包含 (track_id, x, y, w, h, confidence)
-            trajectories: 轨迹数据字典, {track_id: [(x, y, timestamp), ...]}
-            info_text: 左上角信息文本
+            text: 信息文本，支持多行
         """
-        self._overlay_data = {
-            "detections": detections or [],
-            "trajectories": trajectories or {},
-            "info_text": info_text,
-        }
-        self._update_display()
+        self._info_text = text
+        self._update_info_label()
     
     def clear(self) -> None:
         """清除画布"""
         self._current_frame = None
         self._current_pixmap = None
-        self._overlay_data = {}
+        self._info_text = ""
         self._image_label.clear()
         self._info_label.clear()
     
@@ -224,122 +216,62 @@ class VideoCanvas(QWidget):
     # ========================================================================
     
     def _update_display(self) -> None:
-        """更新显示"""
+        """更新显示 - 高质量缩放"""
         if self._current_frame is None:
             return
-        
-        # 绘制叠加层
-        display_frame = self._draw_overlay(self._current_frame.copy())
-        
-        # 转换 BGR 到 RGB
-        if display_frame.ndim == 3 and display_frame.shape[2] == 3:
-            rgb_frame = np.ascontiguousarray(display_frame[:, :, ::-1])
+
+        frame = self._current_frame
+
+        # 转换为 RGB 格式（OpenCV使用BGR，Qt使用RGB）
+        if frame.ndim == 3 and frame.shape[2] == 3:
+            rgb_frame = frame[:, :, ::-1]  # BGR to RGB
+            rgb_frame = np.ascontiguousarray(rgb_frame)
         else:
-            rgb_frame = display_frame
-        
-        # 创建 QImage
+            rgb_frame = frame
+
         h, w = rgb_frame.shape[:2]
         bytes_per_line = 3 * w
-        q_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
-        
-        # 计算缩放后的尺寸
+
+        # 创建 QImage
+        q_image = QImage(
+            rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888
+        )
+
+        # 计算缩放尺寸
         scaled_w = int(w * self._zoom_factor)
         scaled_h = int(h * self._zoom_factor)
-        
-        # 缩放图像
+
         if scaled_w > 0 and scaled_h > 0:
+            # 关键修改：使用 SmoothTransformation 代替 FastTransformation
+            # 确保视觉质量，不要为了表面流畅牺牲清晰度
+            transform_mode = (
+                Qt.TransformationMode.SmoothTransformation
+                if self._high_quality_render
+                else Qt.TransformationMode.FastTransformation
+            )
+
             scaled_pixmap = QPixmap.fromImage(q_image).scaled(
                 scaled_w, scaled_h,
                 Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.FastTransformation  # 性能优化：使用快速缩放
+                transform_mode
             )
             self._current_pixmap = scaled_pixmap
             self._image_label.setPixmap(scaled_pixmap)
             self._image_label.resize(scaled_pixmap.size())
-        
+
+            # 修复：显式居中显示，防止位置跳动
+            # AlignCenter 只对 pixmap 内容有效，对 label 自身位置无效
+            center_x = (self.width() - scaled_pixmap.width()) // 2
+            center_y = (self.height() - scaled_pixmap.height()) // 2
+            self._image_label.move(center_x, center_y)
+
         # 更新信息标签
         self._update_info_label()
-    
-    def _draw_overlay(self, frame: NDArray[np.uint8]) -> NDArray[np.uint8]:
-        """绘制叠加层
-        
-        Args:
-            frame: 原始帧
-            
-        Returns:
-            绘制叠加层后的帧
-        """
-        import cv2
-        
-        detections = self._overlay_data.get("detections", [])
-        trajectories = self._overlay_data.get("trajectories", {})
-        
-        # 绘制轨迹
-        for track_id, points in trajectories.items():
-            if len(points) >= 2:
-                # 提取坐标
-                pts = [(int(p[0]), int(p[1])) for p in points[-50:]]  # 最近50个点
-                for i in range(1, len(pts)):
-                    cv2.line(
-                        frame, pts[i-1], pts[i],
-                        (255, 0, 0),  # 蓝色 (BGR)
-                        2,
-                        cv2.LINE_AA
-                    )
-        
-        # 绘制检测框
-        for det in detections:
-            if len(det) >= 6:
-                track_id, x, y, w, h, confidence = det[:6]
-                x, y, w, h = int(x), int(y), int(w), int(h)
-                
-                # 边界框
-                cv2.rectangle(
-                    frame,
-                    (x, y), (x + w, y + h),
-                    (0, 255, 0),  # 绿色
-                    2
-                )
-                
-                # ID 标签
-                label = f"ID:{track_id} {confidence:.2f}"
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                font_scale = 0.6
-                thickness = 2
-                
-                # 计算文本大小
-                (text_w, text_h), baseline = cv2.getTextSize(label, font, font_scale, thickness)
-                
-                # 绘制文本背景
-                cv2.rectangle(
-                    frame,
-                    (x, y - text_h - 10),
-                    (x + text_w + 10, y),
-                    (0, 255, 0),
-                    -1
-                )
-                
-                # 绘制文本
-                cv2.putText(
-                    frame, label,
-                    (x + 5, y - 5),
-                    font, font_scale,
-                    (255, 255, 255),
-                    thickness,
-                    cv2.LINE_AA
-                )
-                
-                # 中心点
-                center_x, center_y = x + w // 2, y + h // 2
-                cv2.circle(frame, (center_x, center_y), 4, (255, 255, 0), -1)
-        
-        return frame
-    
+
     def _update_info_label(self) -> None:
         """更新信息标签"""
-        info_text = self._overlay_data.get("info_text", "")
-        if info_text:
-            self._info_label.setText(info_text)
+        if self._info_text:
+            self._info_label.setText(self._info_text)
             self._info_label.adjustSize()
             self._info_label.move(10, 10)
             self._info_label.show()
@@ -405,93 +337,3 @@ class VideoCanvas(QWidget):
         super().resizeEvent(event)
         if self._current_frame is not None:
             self._update_display()
-
-
-# 用于测试和演示的 Mock 数据生成器
-class MockFrameGenerator:
-    """Mock 帧生成器
-    
-    用于在没有真实视频源时生成测试帧。
-    """
-    
-    def __init__(self, width: int = 640, height: int = 480):
-        """初始化
-        
-        Args:
-            width: 帧宽度
-            height: 帧高度
-        """
-        self.width = width
-        self.height = height
-        self._frame_count = 0
-        self._targets = [
-            {"id": 1, "x": 100, "y": 100, "vx": 3, "vy": 2},
-            {"id": 2, "x": 400, "y": 200, "vx": -2, "vy": 1},
-            {"id": 3, "x": 300, "y": 300, "vx": 1, "vy": -2},
-        ]
-    
-    def generate(self) -> tuple[NDArray[np.uint8], list, dict, str]:
-        """生成一帧
-        
-        Returns:
-            (frame, detections, trajectories, info_text) 元组
-        """
-        import cv2
-        
-        # 创建渐变背景
-        frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
-        
-        # 绘制网格背景
-        for i in range(0, self.width, 50):
-            cv2.line(frame, (i, 0), (i, self.height), (40, 40, 40), 1)
-        for i in range(0, self.height, 50):
-            cv2.line(frame, (0, i), (self.width, i), (40, 40, 40), 1)
-        
-        # 更新目标位置并绘制
-        detections = []
-        trajectories = {}
-        
-        for target in self._targets:
-            # 更新位置
-            target["x"] += target["vx"]
-            target["y"] += target["vy"]
-            
-            # 边界反弹
-            if target["x"] < 50 or target["x"] > self.width - 50:
-                target["vx"] *= -1
-            if target["y"] < 50 or target["y"] > self.height - 50:
-                target["vy"] *= -1
-            
-            # 确保在范围内
-            target["x"] = max(50, min(self.width - 50, target["x"]))
-            target["y"] = max(50, min(self.height - 50, target["y"]))
-            
-            # 生成检测结果
-            w, h = 60, 80
-            confidence = 0.85 + 0.1 * np.random.random()
-            detections.append((
-                target["id"],
-                target["x"] - w // 2,
-                target["y"] - h // 2,
-                w, h, confidence
-            ))
-            
-            # 绘制简单人形轮廓
-            center = (int(target["x"]), int(target["y"]))
-            cv2.circle(frame, center, 30, (60, 60, 100), -1)
-            cv2.circle(frame, (center[0], center[1] - 40), 15, (70, 70, 100), -1)
-        
-        self._frame_count += 1
-        
-        # 生成轨迹数据 (模拟)
-        for det in detections:
-            track_id = det[0]
-            if track_id not in trajectories:
-                trajectories[track_id] = []
-            trajectories[track_id].append((det[1] + det[3]//2, det[2] + det[4]//2, self._frame_count * 0.033))
-        
-        # 信息文本
-        fps = 28.5 + np.random.random() * 3
-        info_text = f"Frame: {self._frame_count} | FPS: {fps:.1f}\nPersons: {len(self._targets)}"
-        
-        return frame, detections, trajectories, info_text

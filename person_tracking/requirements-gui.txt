@@ -1,11 +1,8 @@
 # Person Tracking System GUI Dependencies
 # 人员检测跟踪系统 GUI 依赖
+#
+# 注意：此文件只包含 GUI 特有依赖
+# 核心依赖（ultralytics, opencv-python, numpy等）请见 requirements.txt
 
-# PySide6 - Qt for Python
+# PySide6 - Qt for Python（GUI必需）
 PySide6>=6.5.0
-
-# OpenCV for image processing (already in main requirements)
-opencv-python>=4.8.0
-
-# NumPy for array handling (already in main requirements)
-numpy>=1.24.0
