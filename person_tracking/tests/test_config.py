@@ -16,6 +16,7 @@ from src.infra.config import (
     LoggingConfig,
     load_config,
     save_config,
+    resolve_tracker_config_path,
 )
 from src.infra.exceptions import ConfigurationError
 
@@ -28,7 +29,7 @@ class TestDetectorConfig:
         config = DetectorConfig()
         assert config.model_path == "yolo11n.pt"
         assert config.confidence_threshold == 0.5
-        assert config.device == "cuda"
+        assert config.device == "auto"  # 默认值改为 auto
         assert config.classes == [0]
 
     def test_custom_config(self):
@@ -140,3 +141,71 @@ class TestSaveConfig:
         # 验证可以重新加载
         loaded = load_config(output_file)
         assert loaded.detector.model_path == config.detector.model_path
+
+
+class TestConfigSourceResolution:
+    """配置来源解析测试"""
+
+    def test_load_config_uses_default_yaml_when_present(self, monkeypatch, tmp_path):
+        """测试 load_config(None) 会优先读取默认 YAML 文件"""
+        from src.infra import config as config_module
+
+        default_yaml = tmp_path / "default.yaml"
+        default_yaml.write_text(
+            yaml.dump(
+                {
+                    "detector": {
+                        "model_path": "custom.pt",
+                        "confidence_threshold": 0.23,
+                    },
+                    "tracker": {
+                        "tracker_type": "bytetrack",
+                    },
+                },
+                allow_unicode=True,
+            ),
+            encoding="utf-8",
+        )
+
+        monkeypatch.setattr(config_module, "DEFAULT_CONFIG_PATH", default_yaml)
+
+        loaded = config_module.load_config()
+        assert loaded.detector.model_path == "custom.pt"
+        assert loaded.detector.confidence_threshold == pytest.approx(0.23, rel=1e-6)
+
+    def test_resolve_tracker_config_path_prefers_explicit_path(self, tmp_path):
+        """测试 tracker 配置路径优先使用显式路径"""
+        tracker_yaml = tmp_path / "my_tracker.yaml"
+        tracker_yaml.write_text("tracker_type: bytetrack\n", encoding="utf-8")
+
+        tracker_cfg = TrackerConfig(
+            tracker_type="bytetrack",
+            tracker_config_path=str(tracker_yaml),
+        )
+
+        resolved = resolve_tracker_config_path(tracker_cfg)
+        assert resolved == str(tracker_yaml)
+
+    def test_resolve_tracker_config_path_fallback_string(self):
+        """测试 tracker 配置在无文件时回退为 Ultralytics 默认字符串"""
+        tracker_cfg = TrackerConfig(
+            tracker_type="botsort",
+            tracker_config_path=None,
+        )
+
+        resolved = resolve_tracker_config_path(tracker_cfg)
+        assert resolved == "botsort.yaml"
+
+    def test_project_bytetrack_yaml_contains_modern_keys(self):
+        """测试项目 ByteTrack 配置包含新版 Ultralytics 所需字段"""
+        from src.infra.config import DEFAULT_BYTETRACK_CONFIG_PATH
+
+        assert DEFAULT_BYTETRACK_CONFIG_PATH.exists()
+
+        with open(DEFAULT_BYTETRACK_CONFIG_PATH, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+
+        assert "track_high_thresh" in cfg
+        assert "track_low_thresh" in cfg
+        assert "new_track_thresh" in cfg
+        assert "match_thresh" in cfg

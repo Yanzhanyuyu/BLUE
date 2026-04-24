@@ -29,12 +29,15 @@ class BoundingBox:
     Attributes:
         x: 左上角 x 坐标（像素）
         y: 左上角 y 坐标（像素）
-        w: 边界框宽度（像素）
-        h: 边界框高度（像素）
+        w: 边界框宽度（像素，必须 >= 0）
+        h: 边界框高度（像素，必须 >= 0）
         confidence: 检测置信度 [0, 1]
 
     Note:
         坐标系：图像左上角为原点，x 向右，y 向下。
+
+    Raises:
+        ValueError: 当输入参数无效时
     """
 
     x: float
@@ -42,6 +45,24 @@ class BoundingBox:
     w: float
     h: float
     confidence: float = 1.0
+
+    def __post_init__(self) -> None:
+        """验证输入参数"""
+        # 验证宽度和高度
+        if self.w < 0:
+            raise ValueError(f"宽度 w 不能为负数，当前值: {self.w}")
+        if self.h < 0:
+            raise ValueError(f"高度 h 不能为负数，当前值: {self.h}")
+
+        # 验证置信度范围
+        if not 0.0 <= self.confidence <= 1.0:
+            raise ValueError(
+                f"置信度 confidence 必须在 [0, 1] 范围内，当前值: {self.confidence}"
+            )
+
+        # 验证坐标是否为数值
+        if not all(isinstance(v, (int, float)) for v in [self.x, self.y, self.w, self.h, self.confidence]):
+            raise ValueError("所有坐标和尺寸参数必须是数值类型")
 
     @property
     def center(self) -> tuple[float, float]:

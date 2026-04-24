@@ -79,7 +79,7 @@ Examples:
         "-f",
         type=str,
         default=None,
-        help="配置文件路径（YAML）",
+        help="配置文件路径（YAML）。不指定时自动加载 config/default.yaml（若存在）",
     )
 
     parser.add_argument(
@@ -181,16 +181,20 @@ def run_tracking(
     # 创建处理管道
     pipeline = TrackingPipeline(cfg)
 
+# 决定是否显示进度条
+    # 优先级: quiet 参数 > show_progress 配置 > 默认(True)
+    should_show_progress = not quiet and cfg.pipeline.show_progress
+
     # 定义进度回调
     def progress_callback(current: int, total: int) -> None:
-        if not quiet and total > 0:
+        if should_show_progress and total > 0:
             percent = current / total * 100
             bar_len = 40
             filled = int(bar_len * current / total)
             bar = "█" * filled + "-" * (bar_len - filled)
             print(f"\r进度: [{bar}] {percent:.1f}% ({current}/{total})", end="")
             if current >= total:
-                print()  # 换行
+                print() # 换行
 
     # 运行处理
     stats = pipeline.run(
@@ -198,7 +202,7 @@ def run_tracking(
         output_path=output,
         csv_path=csv,
         show=show,
-        progress_callback=None if quiet else progress_callback,
+        progress_callback=progress_callback if should_show_progress else None,
     )
 
     return stats

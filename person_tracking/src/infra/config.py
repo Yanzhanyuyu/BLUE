@@ -21,6 +21,11 @@ import yaml
 from pydantic import BaseModel, Field, field_validator
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "default.yaml"
+DEFAULT_BYTETRACK_CONFIG_PATH = PROJECT_ROOT / "config" / "bytetrack.yaml"
+
+
 # ============================================================================
 # 配置类定义
 # ============================================================================
@@ -56,9 +61,9 @@ class DetectorConfig(BaseModel):
         le=1.0,
         description="NMS IOU 阈值",
     )
-    device: Literal["cuda", "cpu", "mps"] = Field(
-        default="cuda",
-        description="推理设备",
+    device: Literal["cuda", "cpu", "mps", "auto"] = Field(
+        default="auto",  # 改为auto自动选择，避免cuda不可用时报错
+        description="推理设备（auto自动选择）",
     )
     classes: list[int] = Field(
         default=[0],
@@ -70,6 +75,23 @@ class DetectorConfig(BaseModel):
         le=1280,
         description="推理图像尺寸",
     )
+
+    @field_validator('device', mode='before')
+    @classmethod
+    def resolve_auto_device(cls, v: str) -> str:
+        """如果 device 为 auto，自动选择可用设备"""
+        if v == 'auto':
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    return 'cuda'
+                elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                    return 'mps'
+                else:
+                    return 'cpu'
+            except ImportError:
+                return 'cpu'
+        return v
 
 
 class TrackerConfig(BaseModel):
@@ -112,6 +134,10 @@ class TrackerConfig(BaseModel):
         le=1.0,
         description="新建轨迹阈值",
     )
+    tracker_config_path: Optional[str] = Field(
+        default=None,
+        description="跟踪器配置文件路径（推荐填写项目内 config/bytetrack.yaml）",
+    )
 
 
 class VisualizerConfig(BaseModel):
@@ -128,6 +154,9 @@ class VisualizerConfig(BaseModel):
         show_center_point: 是否显示中心点
         show_confidence: 是否显示置信度
         font_scale: 字体缩放比例
+        show_bbox: 是否显示边界框（GUI开关支持）
+        show_trajectory: 是否显示轨迹（GUI开关支持）
+        show_id: 是否显示ID标签（GUI开关支持）
     """
 
     box_color: tuple[int, int, int] = Field(
@@ -166,6 +195,19 @@ class VisualizerConfig(BaseModel):
         ge=0.1,
         le=2.0,
         description="字体缩放比例",
+    )
+    # GUI显示开关配置（解决伪开关问题）
+    show_bbox: bool = Field(
+        default=True,
+        description="是否显示边界框",
+    )
+    show_trajectory: bool = Field(
+        default=True,
+        description="是否显示轨迹",
+    )
+    show_id: bool = Field(
+        default=True,
+        description="是否显示ID标签",
     )
 
 
@@ -273,7 +315,7 @@ def load_config(config_path: Optional[str | Path] = None) -> Config:
     从 YAML 文件加载配置，并进行验证。
 
     Args:
-        config_path: 配置文件路径，为 None 使用默认配置
+        config_path: 配置文件路径；为 None 时自动尝试加载项目内 config/default.yaml
 
     Returns:
         验证后的 Config 实例
@@ -288,11 +330,18 @@ def load_config(config_path: Optional[str | Path] = None) -> Config:
     """
     from .exceptions import ConfigurationError
 
-    # 如果未指定配置文件，返回默认配置
+    # 如果未指定配置文件，优先使用项目默认配置文件
     if config_path is None:
-        return Config()
+        if DEFAULT_CONFIG_PATH.exists():
+            config_path = DEFAULT_CONFIG_PATH
+        else:
+            return Config()
 
     config_path = Path(config_path)
+
+    # 相对路径按项目根目录解析
+    if not config_path.is_absolute():
+        config_path = PROJECT_ROOT / config_path
 
     # 检查文件是否存在
     if not config_path.exists():
@@ -364,6 +413,30 @@ def save_config(config: Config, output_path: str | Path) -> None:
 
     with open(output_path, "w", encoding="utf-8") as f:
         yaml.dump(config_dict, f, Dumper=TupleDumper, default_flow_style=False, allow_unicode=True)
+
+
+def resolve_tracker_config_path(tracker_config: TrackerConfig) -> str:
+    """解析跟踪器配置路径。
+
+    解析优先级：
+    1. tracker_config_path（显式配置）
+    2. 项目内 config/bytetrack.yaml（当 tracker_type=bytetrack）
+    3. Ultralytics 外部默认字符串（如 bytetrack.yaml）
+    """
+    configured_path = tracker_config.tracker_config_path
+    if configured_path:
+        candidate = Path(configured_path)
+        if not candidate.is_absolute():
+            candidate = PROJECT_ROOT / candidate
+        if candidate.exists():
+            return str(candidate)
+        # 显式配置但文件不存在时保留原值，交由调用方报错
+        return str(configured_path)
+
+    if tracker_config.tracker_type == "bytetrack" and DEFAULT_BYTETRACK_CONFIG_PATH.exists():
+        return str(DEFAULT_BYTETRACK_CONFIG_PATH)
+
+    return f"{tracker_config.tracker_type}.yaml"
 
 
 # ============================================================================

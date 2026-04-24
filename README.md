@@ -45,7 +45,13 @@ python -m src.main --source video.mp4 --config config/default.yaml
 ### 图形界面使用 🆕
 
 ```bash
-# 启动 GUI 应用
+# 启动 GUI 应用（推荐方式，不依赖 PyTorch 加载）
+python run_gui.py
+
+# 或使用批处理脚本（Windows）
+run_gui.bat
+
+# 或使用 Python 模块（需要完整 PyTorch 环境）
 python -m src.gui.app
 ```
 
@@ -66,12 +72,12 @@ run_gui()
 | 状态监控 | FPS、检测数、目标列表 |
 | 轨迹历史 | 查看选中目标的轨迹记录 |
 | 日志面板 | 系统运行日志实时显示 |
-| 结果导出 | 导出视频和 CSV 日志 |
+| 结果导出 | 导出 tracks.csv 与 trajectory_stats.json（视频导出入口已禁用） |
 
 ### Python API
 
 ```python
-from src import run_tracking
+from src.main import run_tracking
 
 # 运行跟踪
 stats = run_tracking(
@@ -113,6 +119,8 @@ print(f"处理完成: {stats['total_frames']} 帧, {stats['avg_fps']:.1f} FPS")
 │       config.py │ logger.py │ exceptions.py │ loader.py     │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+> 注：`src/gui/controller.py` 当前为废弃兼容壳，真实运行路径以 `src/gui/main_window.py` 为准。
 
 ### 数据流说明
 
@@ -272,13 +280,15 @@ person_tracking/
 
 ## 测试方案
 
-### 单元测试（65个测试）
+### 单元测试（91个测试）🆕
 
 - `test_types.py`: 数据类型测试（BoundingBox, Detection, TrackedObject, Frame, Trajectory）
 - `test_config.py`: 配置加载/保存测试
-- `test_trajectory.py`: 轨迹管理测试（含新增公开方法测试）
+- `test_trajectory.py`: 轨迹管理测试
 - `test_csv_exporter.py`: CSV 导出测试
-- `test_parameter_override.py`: 参数边界值测试 🆕
+- `test_parameter_override.py`: 参数边界值测试
+- `test_worker_integration.py`: Worker 集成测试 🆕
+- `test_export_functionality.py`: 导出功能测试 🆕
 
 ### 运行测试
 
@@ -302,8 +312,9 @@ python scripts/verify_api_export.py
 |--------|------|--------|
 | detector.model_path | 模型路径 | yolo11n.pt |
 | detector.confidence_threshold | 检测置信度 | 0.5 |
-| detector.device | 推理设备 | cuda |
+| detector.device | 推理设备 | auto |
 | tracker.tracker_type | 跟踪器类型 | bytetrack |
+| tracker.tracker_config_path | 跟踪器配置路径 | config/bytetrack.yaml |
 | tracker.track_buffer | 轨迹缓冲帧数 | 30 |
 | visualizer.trajectory_length | 轨迹显示长度 | 50 |
 
@@ -329,17 +340,88 @@ python scripts/verify_api_export.py
 
 ## 最近更新
 
-### 2026-04-14 工程审计与增量改造 🆕
+### 2026-04-17 真实调用链修复与收口 🆕
+
+- ✅ **统一 GUI 唯一主路径**：摄像头定时器路径降级为纯预览，推理统一走 `VideoCaptureWorker + InferenceWorker`。
+- ✅ **修复重复帧推理**：`InferenceWorker` 采用“原子取走 latest_frame + last_processed_frame_id”机制，停止送帧后不再重复处理旧帧。
+- ✅ **打通参数生效链**：`_apply_ui_config_to_pipeline_config()` 完整落地，`_on_config_value_changed()` 区分“可热更新参数”与“需重启参数”。
+- ✅ **修复 MainWindow 导出链**：补全 `_on_export()` / `_export_csv()` / `_export_trajectory_stats()`，稳定导出 `tracks.csv` 与 `trajectory_stats.json`，空数据给出明确提示。
+- ✅ **清理伪架构**：`src/gui/controller.py` 降级为废弃兼容壳，避免并行维护两套 GUI 状态管理逻辑。
+- ✅ **RTSP 入口收口**：GUI 增加 RTSP/HTTP URL 输入与连接逻辑，不再保留假入口。
+- ✅ **配置来源收口**：默认启动自动读取 `config/default.yaml`，并优先使用项目内 `config/bytetrack.yaml`。
+- ✅ **新增回归测试**：覆盖重复帧、摄像头路径互斥、MainWindow 导出链、GUI 参数生效、默认配置来源等关键场景。
+
+### 2026-04-14 P1/P2 技术债修复完成 🆕
+
+#### P1 技术债（全部修复）
+- ✅ **Worker 线程集成** - VideoCaptureWorker + InferenceWorker 完整集成
+- ✅ **导出功能** - 实现 CSV 导出和轨迹统计导出
+- ✅ **show_progress 配置** - 配置项生效，CLI 支持静默模式
+- ✅ **config_changed 信号** - UI 参数热更新，无需重启
+
+#### P2 技术债（全部处理）
+- ✅ **BoundingBox 输入验证** - 添加 `__post_init__` 边界检查
+- ✅ **CSV 原子写入** - 实现临时文件+重命名机制，防止文件损坏
+- ⚠️ **Pipeline 职责边界** - 明确为设计决策，无需修改
+
+#### 测试增强
+- ✅ 新增 Worker 集成测试（7 个）
+- ✅ 新增导出功能测试（12 个）
+- ✅ 新增参数边界值测试（19 个）
+- ✅ 测试总数从 65 增加到 **91**，全部通过
+
+#### GUI 启动优化
+- ✅ **修复 GUI 启动问题** - 移除 `src/__init__.py` 的自动导入，避免 GUI 启动时加载 PyTorch
+- ✅ **新增启动脚本** - `run_gui.py` 和 `run_gui.bat` 提供独立的 GUI 启动方式
+
+---
+
+### 2026-04-14 工程审计与增量改造
 - ✅ 修复 `src/__init__.py` 未导出 `run_tracking` 的 API 一致性问题
 - ✅ 修复参数覆盖使用 truthy 判断的 bug（改为 `is not None`）
 - ✅ 修复 GUI 直接访问核心层私有成员的封装问题
 - ✅ 实现 Pipeline CLI 模式的 `skip_frames` 支持
 - ✅ 新增 `get_all_recent_points()` 公开方法
-- ✅ 新增参数边界值测试（19 个测试）
 - ✅ 新增 API 导出验证脚本 `scripts/verify_api_export.py`
 - ✅ 创建项目规则文件 `AGENTS.md`
 - ✅ 创建会话交接文档 `docs/SESSION_HANDOFF.md`
-- ✅ 测试总数从 44 增加到 65，全部通过
+
+### 2026-04-15 GUI 视频画面位置稳定性修复 🆕
+修复了 GUI 中视频画面位置跳动的问题：
+
+#### Bug 修复
+- ✅ **视频画面居中稳定** - 修复画面在居中和左上角之间跳动的问题
+- `src/gui/widgets/video_canvas.py`: 
+  - 从布局中移除 `_image_label`，改为直接子 widget，避免布局管理器与手动定位冲突
+  - 在 `_update_display()` 中添加显式居中逻辑
+- **问题原因**: `AlignCenter` 仅对 pixmap 内容有效，对 label 位置无效；`_image_label` 被添加到 `QVBoxLayout` 导致布局刷新时位置跳动
+- **解决方案**: 
+  - 从布局中移除 label，由代码手动控制位置
+  - 添加显式 `move()` 调用确保画面始终居中
+  - 保留 pan 功能（通过偏移量计算）
+
+### 2026-04-15 GUI 架构重构与性能优化
+本次重构解决了核心架构问题，在不牺牲视觉观感的前提下提升性能：
+
+#### 核心架构修复
+- ✅ **统一渲染源** - 移除 VideoCanvas 的二次绘制，Visualizer 成为唯一渲染器
+- `src/gui/widgets/video_canvas.py`: 移除 `_draw_overlay()` 方法，改为纯显示组件
+- `src/viz/visualizer.py`: 添加 `show_bbox/trajectory/id` 配置开关支持
+- ✅ **跳帧连续性** - 跳过的帧使用上一帧渲染结果，消除闪烁和轨迹断裂
+- `src/core/pipeline.py`: 新增 `FrameStateCache` 类保持视觉连续性
+- `src/gui/workers.py`: 修复跳帧逻辑使用缓存结果
+- ✅ **配置开关全链路** - GUI 开关实时同步到 Pipeline 配置
+- `src/infra/config.py`: `VisualizerConfig` 新增显示开关配置
+- `src/gui/main_window.py`: 实现 `_apply_ui_config_to_pipeline_config()` 方法
+
+#### 工程结构优化
+- ✅ **标准包导入** - 移除 `run_gui.py` 的 `sys.path.insert` 绕过
+- ✅ **设备自动选择** - `device` 默认改为 `"auto"`，自动选择 cuda/mps/cpu
+- ✅ **高质量缩放** - VideoCanvas 使用 `SmoothTransformation` 替代 `FastTransformation`
+- ✅ **依赖清理** - `requirements-gui.txt` 移除重复依赖声明
+
+#### 文档
+- ✅ 新增重构报告 `docs/REFACTOR_REPORT.md`（含 A-G 完整分析）
 
 ### 性能优化 (2024)
 - ✅ 视频采集和推理已移出GUI主线程，使用独立的Worker线程
@@ -349,10 +431,9 @@ python scripts/verify_api_export.py
 - ✅ 进度条功能：本地视频支持时间显示和拖动跳转
 
 ### 已知限制
-- Worker线程已实现，但需要与 MainWindow 集成（P1 技术债）
-- 导出功能为占位提示，需要完整实现（P1 技术债）
-- RTSP和本地视频的时间轴功能需要进一步完善
-- 参数面板与后端配置的联动需要额外测试
+- RTSP 和本地视频的时间轴功能需要进一步完善
+- 长时间运行时的内存占用优化（可选）
+- 多摄像头同时支持（可选）
 
 ## 许可证
 
