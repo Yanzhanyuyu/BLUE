@@ -1,0 +1,4 @@
+video_name,scene_type,source_path,resolution_width,resolution_height,input_fps,total_frames,duration_seconds,codec,file_size_mb
+multi_person.mp4,multi_person,C:\Users\YanYu\Desktop\data\BLUE\input\multi_person.mp4,1920,1080,25.0,1500,60.0,FMP4,81.59
+occlusion.mp4,occlusion,C:\Users\YanYu\Desktop\data\BLUE\input\occlusion.mp4,1920,1080,25.0,393,15.72,h264,7.75
+single_person.mp4,single_person,C:\Users\YanYu\Desktop\data\BLUE\input\single_person.mp4,1440,2560,23.976023976023978,300,12.5125,h264,10.03

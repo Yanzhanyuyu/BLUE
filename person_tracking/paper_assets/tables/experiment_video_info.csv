@@ -1,0 +1,4 @@
+Video Name,Scene Type,Width,Height,FPS,Total Frames,Duration (s),File Size (MB)
+multi_person.mp4,multi_person,1920,1080,25.0,1500,60.0,81.59
+occlusion.mp4,occlusion,1920,1080,25.0,393,15.72,7.75
+single_person.mp4,single_person,1440,2560,23.976023976023978,300,12.5125,10.03

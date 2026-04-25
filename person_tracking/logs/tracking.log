@@ -20,3 +20,36 @@
 2026-04-14 12:33:32 | INFO     | src.core.pipeline:__init__:70 | TrackingPipeline initialized: model=yolo11n.pt
 2026-04-14 21:42:46 | INFO     | src.core.pipeline:_setup_components:84 | Loading model: yolo11n.pt
 2026-04-14 21:42:47 | INFO     | src.core.pipeline:__init__:70 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-25 15:12:08 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
+2026-04-25 15:12:08 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
+2026-04-25 15:12:09 | INFO     | src.core.pipeline:_setup_components:214 | Using tracker config: C:\Users\YanYu\Desktop\data\BLUE\person_tracking\config\bytetrack.yaml
+2026-04-25 15:12:09 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-25 15:13:06 | INFO     | src.data.loader:__init__:76 | VideoLoader initialized: source=../input/single_person.mp4, fps=23.98, size=1440x2560
+2026-04-25 15:13:06 | INFO     | src.data.loader:__init__:345 | VideoWriter initialized: output=paper_assets/processed/tracking_results/single_person_tracked.mp4, fps=23.976023976023978, size=(1440, 2560)
+2026-04-25 15:13:06 | INFO     | src.export.csv_exporter:__init__:88 | CSVExporter initialized: output=paper_assets/raw/csv/single_person_tracks.csv, atomic=True
+2026-04-25 15:13:06 | INFO     | src.core.pipeline:run:465 | Starting processing: source=../input/single_person.mp4, total_frames=300, output=paper_assets/processed/tracking_results/single_person_tracked.mp4, csv=paper_assets/raw/csv/single_person_tracks.csv
+2026-04-25 15:13:36 | INFO     | src.data.loader:release:393 | VideoWriter released: 300 frames written to paper_assets\processed\tracking_results\single_person_tracked.mp4
+2026-04-25 15:13:36 | INFO     | src.export.csv_exporter:close:250 | CSVExporter closed: 279 rows written to paper_assets\raw\csv\single_person_tracks.csv
+2026-04-25 15:13:36 | INFO     | src.core.pipeline:run:588 | Processing completed: 300 frames, 29.95s, 10.0 FPS
+2026-04-25 15:14:03 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
+2026-04-25 15:14:04 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
+2026-04-25 15:14:04 | INFO     | src.core.pipeline:_setup_components:214 | Using tracker config: C:\Users\YanYu\Desktop\data\BLUE\person_tracking\config\bytetrack.yaml
+2026-04-25 15:14:04 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-25 15:14:06 | INFO     | src.data.loader:__init__:76 | VideoLoader initialized: source=../input/multi_person.mp4, fps=25.00, size=1920x1080
+2026-04-25 15:14:06 | INFO     | src.data.loader:__init__:345 | VideoWriter initialized: output=paper_assets/processed/tracking_results/multi_person_tracked.mp4, fps=25.0, size=(1920, 1080)
+2026-04-25 15:14:06 | INFO     | src.export.csv_exporter:__init__:88 | CSVExporter initialized: output=paper_assets/raw/csv/multi_person_tracks.csv, atomic=True
+2026-04-25 15:14:06 | INFO     | src.core.pipeline:run:465 | Starting processing: source=../input/multi_person.mp4, total_frames=1500, output=paper_assets/processed/tracking_results/multi_person_tracked.mp4, csv=paper_assets/raw/csv/multi_person_tracks.csv
+2026-04-25 15:15:56 | INFO     | src.data.loader:release:393 | VideoWriter released: 1500 frames written to paper_assets\processed\tracking_results\multi_person_tracked.mp4
+2026-04-25 15:15:56 | INFO     | src.export.csv_exporter:close:250 | CSVExporter closed: 10124 rows written to paper_assets\raw\csv\multi_person_tracks.csv
+2026-04-25 15:15:56 | INFO     | src.core.pipeline:run:588 | Processing completed: 1500 frames, 110.52s, 13.6 FPS
+2026-04-25 15:16:28 | INFO     | src.core.pipeline:_setup_components:197 | Loading model: yolo11n.pt
+2026-04-25 15:16:28 | INFO     | src.core.pipeline:_setup_components:210 | Using device: cuda
+2026-04-25 15:16:28 | INFO     | src.core.pipeline:_setup_components:214 | Using tracker config: C:\Users\YanYu\Desktop\data\BLUE\person_tracking\config\bytetrack.yaml
+2026-04-25 15:16:28 | INFO     | src.core.pipeline:__init__:183 | TrackingPipeline initialized: model=yolo11n.pt
+2026-04-25 15:16:30 | INFO     | src.data.loader:__init__:76 | VideoLoader initialized: source=../input/occlusion.mp4, fps=25.00, size=1920x1080
+2026-04-25 15:16:30 | INFO     | src.data.loader:__init__:345 | VideoWriter initialized: output=paper_assets/processed/tracking_results/occlusion_tracked.mp4, fps=25.0, size=(1920, 1080)
+2026-04-25 15:16:30 | INFO     | src.export.csv_exporter:__init__:88 | CSVExporter initialized: output=paper_assets/raw/csv/occlusion_tracks.csv, atomic=True
+2026-04-25 15:16:30 | INFO     | src.core.pipeline:run:465 | Starting processing: source=../input/occlusion.mp4, total_frames=393, output=paper_assets/processed/tracking_results/occlusion_tracked.mp4, csv=paper_assets/raw/csv/occlusion_tracks.csv
+2026-04-25 15:16:57 | INFO     | src.data.loader:release:393 | VideoWriter released: 393 frames written to paper_assets\processed\tracking_results\occlusion_tracked.mp4
+2026-04-25 15:16:57 | INFO     | src.export.csv_exporter:close:250 | CSVExporter closed: 951 rows written to paper_assets\raw\csv\occlusion_tracks.csv
+2026-04-25 15:16:57 | INFO     | src.core.pipeline:run:588 | Processing completed: 393 frames, 26.71s, 14.7 FPS

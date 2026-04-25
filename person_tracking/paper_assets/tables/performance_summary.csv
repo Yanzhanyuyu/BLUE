@@ -1,0 +1,4 @@
+avg_confidence,avg_person_count_per_frame,max_confidence,max_person_count_per_frame,min_confidence,scene_type,total_detections,total_unique_tracks,track_length_avg_frames,track_length_max_frames,track_length_min_frames,video_name,total_frames,elapsed_time,avg_fps,avg_processing_time_ms
+0.6275060845515607,6.758344459279039,0.8713,14,0.5,multi_person,10124,95,106.56842105263158,537,2,multi_person,1500.0,110.52,13.6,73.68
+0.7317910620399578,2.509234828496042,0.9488,6,0.5001,occlusion,951,30,31.7,83,1,occlusion,393.0,26.71,14.7,67.96437659033079
+0.8074308243727598,1.0,0.9056,1,0.5011,single_person,279,2,139.5,278,1,single_person,300.0,29.95,10.0,99.83333333333333

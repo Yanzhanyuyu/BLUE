@@ -1,0 +1,4 @@
+avg_bbox_area,avg_confidence,avg_person_count_per_frame,max_confidence,max_person_count_per_frame,min_confidence,possible_id_switch_count,scene_type,total_detections,total_unique_tracks,track_length_avg_frames,track_length_max_frames,track_length_min_frames,video_name
+17987.553694132755,0.6275060845515607,6.758344459279039,0.8713,14,0.5,0,multi_person,10124,95,106.56842105263158,537,2,multi_person
+227978.17276950576,0.7317910620399578,2.509234828496042,0.9488,6,0.5001,0,occlusion,951,30,31.7,83,1,occlusion
+171212.60916881723,0.8074308243727598,1.0,0.9056,1,0.5011,1,single_person,279,2,139.5,278,1,single_person

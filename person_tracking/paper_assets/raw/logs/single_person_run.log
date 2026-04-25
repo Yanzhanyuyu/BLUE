@@ -1,0 +1,8 @@
+
+2026-04-25 15:13:06 | INFO     | src.data.loader:__init__:76 | VideoLoader initialized: source=../input/single_person.mp4, fps=23.98, size=1440x2560
+2026-04-25 15:13:06 | INFO     | src.data.loader:__init__:345 | VideoWriter initialized: output=paper_assets/processed/tracking_results/single_person_tracked.mp4, fps=23.976023976023978, size=(1440, 2560)
+2026-04-25 15:13:06 | INFO     | src.export.csv_exporter:__init__:88 | CSVExporter initialized: output=paper_assets/raw/csv/single_person_tracks.csv, atomic=True
+2026-04-25 15:13:06 | INFO     | src.core.pipeline:run:465 | Starting processing: source=../input/single_person.mp4, total_frames=300, output=paper_assets/processed/tracking_results/single_person_tracked.mp4, csv=paper_assets/raw/csv/single_person_tracks.csv
+2026-04-25 15:13:36 | INFO     | src.data.loader:release:393 | VideoWriter released: 300 frames written to paper_assets\processed\tracking_results\single_person_tracked.mp4
+2026-04-25 15:13:36 | INFO     | src.export.csv_exporter:close:250 | CSVExporter closed: 279 rows written to paper_assets\raw\csv\single_person_tracks.csv
+

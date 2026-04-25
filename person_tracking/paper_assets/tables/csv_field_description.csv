@@ -1,0 +1,10 @@
+Field,Description
+track_id,Unique identifier for each tracked person
+frame_id,Frame number in the video
+timestamp,Time in seconds from the start of the video
+x,X coordinate of the top-left corner of the bounding box
+y,Y coordinate of the top-left corner of the bounding box
+w,Width of the bounding box
+h,Height of the bounding box
+confidence,Detection confidence score (0.0 to 1.0)
+class_name,Detected class name (always 'person' for this system)

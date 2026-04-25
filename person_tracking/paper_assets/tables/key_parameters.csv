@@ -1,0 +1,18 @@
+Parameter,Default Value,Description
+detector.model_path,yolo11n.pt,YOLOv11 model path
+detector.confidence_threshold,0.5,Detection confidence threshold
+detector.iou_threshold,0.45,NMS IOU threshold
+detector.device,auto,Inference device
+detector.imgsz,640,Inference image size
+tracker.tracker_type,bytetrack,Tracker type
+tracker.track_buffer,30,Track buffer frames
+tracker.match_thresh,0.8,Match threshold
+tracker.track_thresh,0.5,Track threshold
+tracker.new_track_thresh,0.6,New track threshold
+visualizer.trajectory_length,50,Trajectory display length
+visualizer.line_thickness,2,Line thickness
+visualizer.font_scale,0.6,Font scale
+bytetrack.track_buffer,30,ByteTrack track buffer
+bytetrack.track_high_thresh,0.5,ByteTrack high threshold
+bytetrack.track_low_thresh,0.1,ByteTrack low threshold
+bytetrack.match_thresh,0.8,ByteTrack match threshold
