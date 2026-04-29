@@ -237,6 +237,7 @@ class TrackingPipeline:
             dummy_frame,
             conf=self.config.detector.confidence_threshold,
             classes=self.config.detector.classes,
+            max_det=self.config.detector.max_det,
             tracker=tracker_cfg_path,
             persist=True,
             verbose=False,
@@ -277,6 +278,7 @@ class TrackingPipeline:
                 iou=self.config.detector.iou_threshold,
                 classes=self.config.detector.classes,
                 imgsz=self.config.detector.imgsz,
+                max_det=self.config.detector.max_det,
                 tracker=tracker_cfg_path,
                 persist=True,
                 verbose=False,
@@ -289,6 +291,7 @@ class TrackingPipeline:
                 iou=self.config.detector.iou_threshold,
                 classes=self.config.detector.classes,
                 imgsz=self.config.detector.imgsz,
+                max_det=self.config.detector.max_det,
                 verbose=False,
             )
 

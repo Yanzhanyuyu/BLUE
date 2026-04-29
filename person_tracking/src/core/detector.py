@@ -130,6 +130,7 @@ class PersonDetector:
                 iou=self.config.iou_threshold,
                 classes=self.config.classes,
                 imgsz=self.config.imgsz,
+                max_det=self.config.max_det,
                 verbose=False,
             )
             self._warmup_done = True
@@ -170,6 +171,7 @@ class PersonDetector:
                 iou=self.config.iou_threshold,
                 classes=self.config.classes,  # 只检测 person
                 imgsz=self.config.imgsz,
+                max_det=self.config.max_det,
                 verbose=False,
             )
 

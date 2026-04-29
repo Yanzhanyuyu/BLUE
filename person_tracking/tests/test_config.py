@@ -28,9 +28,11 @@ class TestDetectorConfig:
         """测试默认配置"""
         config = DetectorConfig()
         assert config.model_path == "yolo11n.pt"
-        assert config.confidence_threshold == 0.5
+        assert config.confidence_threshold == 0.35
         assert config.device == "auto"  # 默认值改为 auto
         assert config.classes == [0]
+        assert config.imgsz == 960
+        assert config.max_det == 500
 
     def test_custom_config(self):
         """测试自定义配置"""
@@ -101,6 +103,7 @@ class TestLoadConfig:
         config = load_config()
         assert isinstance(config, Config)
         assert config.detector.model_path == "yolo11n.pt"
+        assert config.detector.max_det == 500
 
     def test_load_from_file(self, temp_output_dir):
         """测试从文件加载"""

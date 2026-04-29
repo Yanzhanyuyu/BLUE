@@ -15,20 +15,51 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from typing import List, Dict
+from matplotlib.colors import LinearSegmentedColormap
+
+
+COOL_PALETTE = ["#90C9E7", "#219EBC", "#136783", "#02304A"]
+WARM_PALETTE = ["#FEB705", "#FF9E02", "#FA8600"]
+AXIS_COLOR = "#000000"
+GRID_COLOR = "#E6E6E6"
+ERROR_COLOR = "#333333"
 
 
 def set_matplotlib_style():
     """Set matplotlib style for thesis figures."""
     plt.style.use("default")
-    plt.rcParams["font.family"] = "serif"
-    plt.rcParams["font.serif"] = ["Times New Roman"]
-    plt.rcParams["font.size"] = 12
-    plt.rcParams["axes.labelsize"] = 12
-    plt.rcParams["axes.titlesize"] = 14
-    plt.rcParams["xtick.labelsize"] = 10
-    plt.rcParams["ytick.labelsize"] = 10
-    plt.rcParams["legend.fontsize"] = 10
+    plt.rcParams["font.family"] = "sans-serif"
+    plt.rcParams["font.sans-serif"] = ["Arial", "Helvetica", "DejaVu Sans"]
+    plt.rcParams["font.size"] = 9
+    plt.rcParams["axes.labelsize"] = 9
+    plt.rcParams["axes.titlesize"] = 10
+    plt.rcParams["xtick.labelsize"] = 8
+    plt.rcParams["ytick.labelsize"] = 8
+    plt.rcParams["legend.fontsize"] = 8
     plt.rcParams["figure.dpi"] = 300
+    plt.rcParams["figure.facecolor"] = "white"
+    plt.rcParams["axes.facecolor"] = "white"
+    plt.rcParams["axes.edgecolor"] = AXIS_COLOR
+    plt.rcParams["axes.linewidth"] = 0.75
+    plt.rcParams["xtick.direction"] = "in"
+    plt.rcParams["ytick.direction"] = "in"
+    plt.rcParams["xtick.color"] = AXIS_COLOR
+    plt.rcParams["ytick.color"] = AXIS_COLOR
+    plt.rcParams["legend.frameon"] = False
+
+
+def style_axes(ax: plt.Axes, show_grid: bool = True) -> None:
+    """Apply consistent axis styling."""
+    for spine in ax.spines.values():
+        spine.set_linewidth(0.75)
+        spine.set_color(AXIS_COLOR)
+
+    ax.tick_params(axis="both", which="both", direction="in")
+
+    if show_grid:
+        ax.grid(axis="y", color=GRID_COLOR, linewidth=0.5, alpha=0.6)
+    else:
+        ax.grid(False)
 
 
 def plot_fps_comparison(performance_csv: Path, output_path: Path) -> None:
@@ -46,7 +77,8 @@ def plot_fps_comparison(performance_csv: Path, output_path: Path) -> None:
     scenes = df["video_name"].tolist()
     fps_values = df["avg_fps"].tolist()
 
-    bars = ax.bar(scenes, fps_values, color="steelblue", alpha=0.7)
+    colors = [COOL_PALETTE[i % len(COOL_PALETTE)] for i in range(len(scenes))]
+    bars = ax.bar(scenes, fps_values, color=colors, alpha=1.0)
 
     # Add value labels on bars
     for bar in bars:
@@ -62,7 +94,7 @@ def plot_fps_comparison(performance_csv: Path, output_path: Path) -> None:
     ax.set_xlabel("Test Scene")
     ax.set_ylabel("Average FPS")
     ax.set_title("Average FPS Comparison Across Test Scenes")
-    ax.grid(axis="y", alpha=0.3)
+    style_axes(ax, show_grid=True)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
@@ -89,7 +121,8 @@ def plot_processing_time_comparison(
     scenes = df["video_name"].tolist()
     processing_times = df["avg_processing_time_ms"].tolist()
 
-    bars = ax.bar(scenes, processing_times, color="coral", alpha=0.7)
+    colors = [COOL_PALETTE[i % len(COOL_PALETTE)] for i in range(len(scenes))]
+    bars = ax.bar(scenes, processing_times, color=colors, alpha=1.0)
 
     # Add value labels on bars
     for bar in bars:
@@ -105,7 +138,7 @@ def plot_processing_time_comparison(
     ax.set_xlabel("Test Scene")
     ax.set_ylabel("Average Processing Time (ms)")
     ax.set_title("Average Processing Time Comparison Across Test Scenes")
-    ax.grid(axis="y", alpha=0.3)
+    style_axes(ax, show_grid=True)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
@@ -135,15 +168,15 @@ def plot_person_count_over_time(
     ax.plot(
         frame_counts.index,
         frame_counts.values,
-        color="darkblue",
+        color=COOL_PALETTE[2],
         linewidth=1.5,
-        alpha=0.8,
+        alpha=1.0,
     )
 
     ax.set_xlabel("Frame Index")
     ax.set_ylabel("Number of Detected Persons")
     ax.set_title("Person Count Over Time in Multi-Person Scene")
-    ax.grid(alpha=0.3)
+    style_axes(ax, show_grid=True)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
@@ -175,15 +208,15 @@ def plot_confidence_distribution(
     ax.hist(
         all_confidences,
         bins=30,
-        color="mediumseagreen",
-        alpha=0.7,
-        edgecolor="black",
+        color=COOL_PALETTE[1],
+        alpha=1.0,
+        edgecolor=ERROR_COLOR,
     )
 
     ax.set_xlabel("Detection Confidence")
     ax.set_ylabel("Frequency")
     ax.set_title("Detection Confidence Distribution")
-    ax.grid(axis="y", alpha=0.3)
+    style_axes(ax, show_grid=True)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
@@ -219,13 +252,14 @@ def plot_trajectory_example(
     fig, ax = plt.subplots(figsize=(8, 6))
 
     # Plot trajectory with color gradient based on frame index
+    cmap = LinearSegmentedColormap.from_list("cool_palette", COOL_PALETTE)
     scatter = ax.scatter(
         track_data["center_x"],
         track_data["center_y"],
         c=track_data["frame_id"],
-        cmap="viridis",
+        cmap=cmap,
         s=20,
-        alpha=0.7,
+        alpha=1.0,
     )
 
     # Add colorbar
@@ -236,7 +270,7 @@ def plot_trajectory_example(
     ax.scatter(
         track_data.iloc[0]["center_x"],
         track_data.iloc[0]["center_y"],
-        color="green",
+        color=COOL_PALETTE[0],
         s=100,
         marker="o",
         label="Start",
@@ -244,7 +278,7 @@ def plot_trajectory_example(
     ax.scatter(
         track_data.iloc[-1]["center_x"],
         track_data.iloc[-1]["center_y"],
-        color="red",
+        color=COOL_PALETTE[3],
         s=100,
         marker="s",
         label="End",
@@ -253,8 +287,8 @@ def plot_trajectory_example(
     ax.set_xlabel("X Position (pixels)")
     ax.set_ylabel("Y Position (pixels)")
     ax.set_title(f"Trajectory Example (Track ID: {longest_track_id})")
-    ax.legend()
-    ax.grid(alpha=0.3)
+    ax.legend(frameon=False)
+    style_axes(ax, show_grid=True)
     ax.set_aspect("equal", adjustable="box")
 
     plt.tight_layout()
@@ -285,7 +319,8 @@ def plot_resource_usage(
     scenes = df["video_name"].tolist()
     fps_values = df["avg_fps"].tolist()
 
-    bars = ax.bar(scenes, fps_values, color="orchid", alpha=0.7)
+    colors = [COOL_PALETTE[i % len(COOL_PALETTE)] for i in range(len(scenes))]
+    bars = ax.bar(scenes, fps_values, color=colors, alpha=1.0)
 
     # Add value labels on bars
     for bar in bars:
@@ -301,7 +336,7 @@ def plot_resource_usage(
     ax.set_xlabel("Test Scene")
     ax.set_ylabel("Average FPS (Resource Usage Indicator)")
     ax.set_title("System Resource Usage Across Test Scenes")
-    ax.grid(axis="y", alpha=0.3)
+    style_axes(ax, show_grid=True)
 
     # Add note
     ax.text(
@@ -311,8 +346,9 @@ def plot_resource_usage(
         ha="center",
         va="center",
         transform=ax.transAxes,
-        fontsize=9,
+        fontsize=8,
         style="italic",
+        color=ERROR_COLOR,
     )
 
     plt.tight_layout()

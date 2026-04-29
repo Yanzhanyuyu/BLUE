@@ -21,10 +21,10 @@ detector:
   model_path: "yolo11n.pt"
   
   # 检测置信度阈值 [0.0, 1.0]
-  confidence_threshold: 0.5
+  confidence_threshold: 0.35
   
   # NMS IOU 阈值 [0.0, 1.0]
-  iou_threshold: 0.45
+  iou_threshold: 0.5
   
   # 推理设备 (auto, cuda, cpu, mps)
   device: "auto"
@@ -33,7 +33,10 @@ detector:
   classes: [0]
   
   # 推理图像尺寸
-  imgsz: 640
+  imgsz: 960
+
+  # 单帧最大检测目标数（密集场景建议提高）
+  max_det: 500
 
 # -----------------------------------------------------------------------------
 # 跟踪器配置

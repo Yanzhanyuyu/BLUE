@@ -24,8 +24,8 @@ class TestParameterOverride:
     def test_confidence_zero(self):
         """测试 confidence=0.0 应被正确覆盖（不应被 truthy 跳过）"""
         config = Config()
-        # 默认值是 0.5
-        assert config.detector.confidence_threshold == 0.5
+        # 默认值已调整为更适合多人场景的 0.35
+        assert config.detector.confidence_threshold == 0.35
 
         # 覆盖为 0.0
         config.detector.confidence_threshold = 0.0

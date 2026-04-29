@@ -176,6 +176,7 @@ class YOLOTrackerWrapper:
         timestamp: float = 0.0,
         confidence: float = 0.5,
         classes: list[int] = None,
+        max_det: int = 500,
     ) -> list[TrackedObject]:
         """检测并跟踪
 
@@ -206,6 +207,7 @@ class YOLOTrackerWrapper:
                 frame,
                 conf=confidence,
                 classes=classes,
+                max_det=max_det,
                 tracker=f"{self.tracker_config.tracker_type}.yaml",
                 persist=True,
                 verbose=False,

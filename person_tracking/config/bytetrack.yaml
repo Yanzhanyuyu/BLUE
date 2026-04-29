@@ -29,27 +29,27 @@ track_buffer: 30
 
 # 高阈值 (track_high_thresh)
 # 高于该阈值的检测结果被认为是"高置信度"，直接用于轨迹关联
-# 推荐值: 0.5
-track_high_thresh: 0.5
+# 密集场景可适当下调，提高目标召回
+track_high_thresh: 0.45
 
 # 低阈值 (track_low_thresh)
 # 在二阶段匹配中使用的低置信度阈值
-# 推荐值: 0.1
-track_low_thresh: 0.1
+# 密集场景可适当下调，保留更多遮挡目标
+track_low_thresh: 0.05
 
 # 兼容旧字段（部分版本仍可能读取）
-track_thresh: 0.5
+track_thresh: 0.45
 
 # 新轨迹阈值 (new_track_thresh)
 # 高于该阈值的检测结果可以创建新的轨迹
-# 推荐值: 0.6 (比 track_thresh 稍高，避免频繁创建新轨迹)
-new_track_thresh: 0.6
+# 密集场景可适当下调，减少漏建轨迹
+new_track_thresh: 0.5
 
 # 匹配阈值 (match_thresh)
 # 轨迹与检测框之间的 IOU 阈值，用于判断是否匹配
 # 值越大，匹配条件越严格
-# 推荐值: 0.8
-match_thresh: 0.8
+# 密集场景略降可减少遮挡下的丢轨
+match_thresh: 0.75
 
 # 是否在匹配时融合检测分数
 fuse_score: true

@@ -43,6 +43,7 @@ class DetectorConfig(BaseModel):
         device: 推理设备
         classes: 要检测的类别 ID 列表（COCO: person=0）
         imgsz: 推理图像尺寸
+        max_det: 单帧最大检测目标数
     """
 
     model_path: str = Field(
@@ -50,13 +51,13 @@ class DetectorConfig(BaseModel):
         description="YOLOv11 模型路径",
     )
     confidence_threshold: float = Field(
-        default=0.5,
+        default=0.35,
         ge=0.0,
         le=1.0,
         description="检测置信度阈值",
     )
     iou_threshold: float = Field(
-        default=0.45,
+        default=0.5,
         ge=0.0,
         le=1.0,
         description="NMS IOU 阈值",
@@ -70,10 +71,16 @@ class DetectorConfig(BaseModel):
         description="检测类别 ID 列表（person=0）",
     )
     imgsz: int = Field(
-        default=640,
+        default=960,
         ge=128,
         le=1280,
         description="推理图像尺寸",
+    )
+    max_det: int = Field(
+        default=500,
+        ge=1,
+        le=2000,
+        description="单帧最大检测目标数",
     )
 
     @field_validator('device', mode='before')
